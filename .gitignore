@@ -1,0 +1,22 @@
+
+# backend
+backend/.venv/
+backend/__pycache__/
+backend/**/*.pyc
+backend/.env
+backend/.env.*
+
+
+# secrets
+.env
+.env.*
+backend/**/.env
+backend/**/.env.*
+
+# logs
+*.log
+backend/**/backend.log
+
+# archives / large files
+*.zip
+
