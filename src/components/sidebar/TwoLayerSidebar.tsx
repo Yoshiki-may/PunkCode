@@ -3,6 +3,7 @@ import { IconRail } from './IconRail';
 import { ContextDrawer } from './ContextDrawer';
 import { CompactDrawer } from './CompactDrawer';
 import { HomeDrawerContent } from './drawers/HomeDrawerContent';
+import { DirectionHomeDrawer } from './drawers/DirectionHomeDrawer';
 import { ScheduleDrawerContent } from './drawers/ScheduleDrawerContent';
 import { PALSSAIDrawerContent } from './drawers/PALSSAIDrawerContent';
 import { ClientsQuickView } from './drawers/ClientsQuickView';
@@ -48,7 +49,7 @@ export function TwoLayerSidebar({
 
   // Sync activeRailItem with currentView
   useEffect(() => {
-    if (currentView === 'home' || currentView === 'inbox-alerts' || currentView === 'tasks' || currentView === 'kpi-reports' || currentView === 'pipeline') {
+    if (currentView === 'home' || currentView === 'direction-home' || currentView === 'direction-dashboard' || currentView === 'my-clients' || currentView === 'inbox-alerts' || currentView === 'tasks' || currentView === 'kpi-reports' || currentView === 'pipeline' || currentView === 'direction-approvals' || currentView === 'direction-pipeline' || currentView === 'direction-workload' || currentView === 'direction-projects') {
       setActiveRailItem('home');
     } else if (currentView === 'clients-all' || currentView === 'client-detail') {
       setActiveRailItem('clients');
@@ -70,7 +71,21 @@ export function TwoLayerSidebar({
     // Map rail item to view
     switch (itemId) {
       case 'home':
-        onViewChange('home');
+        // Navigate to appropriate home based on current board
+        if (currentBoard === 'direction') {
+          onViewChange('direction-home');
+        } else if (currentBoard === 'editor') {
+          onViewChange('editor-home');
+        } else if (currentBoard === 'creator') {
+          onViewChange('creator-home');
+        } else if (currentBoard === 'support') {
+          onViewChange('management-home');
+        } else if (currentBoard === 'client') {
+          onViewChange('client-home');
+        } else {
+          // Default to Sales Board home
+          onViewChange('home');
+        }
         break;
       case 'schedule':
         onViewChange('schedule');
@@ -138,6 +153,15 @@ export function TwoLayerSidebar({
   const renderDrawerContent = () => {
     switch (activeRailItem) {
       case 'home':
+        // Use Direction-specific drawer if on Direction board
+        if (currentBoard === 'direction') {
+          return (
+            <DirectionHomeDrawer
+              onViewChange={onViewChange}
+              currentView={currentView}
+            />
+          );
+        }
         return (
           <HomeDrawerContent
             onViewChange={onViewChange}
@@ -201,6 +225,7 @@ export function TwoLayerSidebar({
         onItemClick={handleRailItemClick}
         onSettingsClick={handleSettingsClick}
         onFullscreenClick={handleFullscreenClick}
+        currentBoard={currentBoard}
       />
 
       {/* Context Drawer (Layer 2) - Full or Compact */}
@@ -215,6 +240,7 @@ export function TwoLayerSidebar({
           onItemClick={handleRailItemClick}
           currentView={currentView}
           onViewChange={onViewChange}
+          currentBoard={currentBoard}
         >
           {renderDrawerContent()}
         </ContextDrawer>

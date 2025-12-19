@@ -14,7 +14,10 @@ import {
   Shield,
   Bell,
   ChevronRight,
-  Activity
+  Activity,
+  LayoutDashboard,
+  CheckCircle2,
+  Briefcase
 } from 'lucide-react';
 
 interface CompactDrawerProps {
@@ -23,6 +26,7 @@ interface CompactDrawerProps {
   onExpand: () => void;
   currentView?: string;
   onViewChange: (view: string) => void;
+  currentBoard?: string;
 }
 
 interface CompactMenuItem {
@@ -31,10 +35,20 @@ interface CompactMenuItem {
   label: string;
 }
 
-// Define menu items for each main category
-const getMenuItemsForCategory = (category: string): CompactMenuItem[] => {
+// Define menu items for each main category and board
+const getMenuItemsForCategory = (category: string, currentBoard?: string): CompactMenuItem[] => {
   switch (category) {
     case 'home':
+      // Direction Board has different home menu items
+      if (currentBoard === 'direction') {
+        return [
+          { id: 'direction-dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+          { id: 'my-clients', icon: Briefcase, label: 'My Clients' },
+          { id: 'direction-approvals', icon: CheckCircle2, label: 'Approvals' },
+          { id: 'tasks', icon: ListTodo, label: 'Tasks' },
+        ];
+      }
+      // Sales Board (default)
       return [
         { id: 'home', icon: Home, label: 'HOME' },
         { id: 'tasks', icon: ListTodo, label: 'Tasks' },
@@ -67,8 +81,8 @@ const getMenuItemsForCategory = (category: string): CompactMenuItem[] => {
   }
 };
 
-export function CompactDrawer({ activeItem, onItemClick, onExpand, currentView, onViewChange }: CompactDrawerProps) {
-  const menuItems = getMenuItemsForCategory(activeItem);
+export function CompactDrawer({ activeItem, onItemClick, onExpand, currentView, onViewChange, currentBoard }: CompactDrawerProps) {
+  const menuItems = getMenuItemsForCategory(activeItem, currentBoard);
 
   return (
     <div className="fixed top-16 left-16 w-16 h-[calc(100vh-4rem)] bg-sidebar border-r border-sidebar-border flex flex-col items-center py-4 z-30">

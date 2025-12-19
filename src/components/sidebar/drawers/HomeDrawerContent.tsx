@@ -4,7 +4,8 @@ import {
   CheckSquare,
   TrendingUp,
   BarChart3,
-  Activity
+  Activity,
+  Briefcase
 } from 'lucide-react';
 import { MenuSectionTitle, MenuItem } from '../DrawerComponents';
 
@@ -27,6 +28,12 @@ export function HomeDrawerContent({
             label="HOME"
             onClick={() => onViewChange('home')}
             isActive={currentView === 'home'}
+          />
+          <MenuItem
+            icon={Briefcase}
+            label="My Clients"
+            onClick={() => onViewChange('my-clients')}
+            isActive={currentView === 'my-clients' || currentView === 'sales-client-detail'}
           />
           <MenuItem
             icon={CheckSquare}

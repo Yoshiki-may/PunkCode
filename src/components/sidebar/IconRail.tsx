@@ -1,4 +1,4 @@
-import { Home, Calendar, Sparkles, Users, BarChart3, Settings, LucideIcon, Lightbulb, Maximize } from 'lucide-react';
+import { Home, Calendar, Sparkles, Users, Settings, LucideIcon, Lightbulb, Maximize } from 'lucide-react';
 import { useState } from 'react';
 
 export interface RailItem {
@@ -13,14 +13,25 @@ interface IconRailProps {
   onItemClick: (itemId: string) => void;
   onSettingsClick?: () => void;
   onFullscreenClick?: () => void;
+  currentBoard?: string;
 }
 
-export function IconRail({ activeItem, onItemClick, onSettingsClick, onFullscreenClick }: IconRailProps) {
+export function IconRail({ activeItem, onItemClick, onSettingsClick, onFullscreenClick, currentBoard }: IconRailProps) {
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
-  const railItems: RailItem[] = [
+  // Base rail items
+  const baseRailItems: RailItem[] = [
     { id: 'home', icon: Home, label: 'Overview' },
-    { id: 'clients', icon: Users, label: 'Clients' },
+  ];
+
+  // Add Clients icon only if not on Direction board
+  if (currentBoard !== 'direction') {
+    baseRailItems.push({ id: 'clients', icon: Users, label: 'Clients' });
+  }
+
+  // Add remaining items
+  const railItems: RailItem[] = [
+    ...baseRailItems,
     { id: 'ai', icon: Sparkles, label: 'PALSS AI' },
     { id: 'schedule', icon: Calendar, label: 'Schedule' },
     { id: 'sns-news', icon: Lightbulb, label: 'SNS News' },
