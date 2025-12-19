@@ -1,9 +1,53 @@
 
+# dependencies
 node_modules/
+
+# build outputs
 dist/
 build/
+
+# secrets / env
 .env
 .env.*
-*.log
-*.zip
+backend/.env
+backend/.env.*
+backend/**/.env
+backend/**/.env.*
 
+# backend python
+backend/.venv/
+backend/__pycache__/
+backend/**/*.pyc
+
+# logs
+*.log
+backend/**/backend.log
+
+# archives / large files
+*.zip
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+build/
+
+# secrets / env
+.env
+.env.*
+backend/.env
+backend/.env.*
+backend/**/.env
+backend/**/.env.*
+
+# backend python
+backend/.venv/
+backend/__pycache__/
+backend/**/*.pyc
+
+# logs
+*.log
+backend/**/backend.log
+
+# archives / large files
+*.zip
