@@ -20,3 +20,8 @@ backend/**/backend.log
 # archives / large files
 *.zip
 
+
+node_modules/
+dist/
+build/
+
