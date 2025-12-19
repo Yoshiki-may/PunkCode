@@ -1,53 +1,88 @@
+import { ControlBoardSidebar } from './components/control-board/ControlBoardSidebar';
+import { ExecutiveDashboard } from './components/control-board/ExecutiveDashboard';
+import { FinancialOverview } from './components/control-board/FinancialOverview';
+import { ProjectPortfolio } from './components/control-board/ProjectPortfolio';
+import { TeamPerformance } from './components/control-board/TeamPerformance';
+import { ClientIntelligence } from './components/control-board/ClientIntelligence';
+import { ApprovalCenter } from './components/control-board/ApprovalCenter';
+import { RiskManagement } from './components/control-board/RiskManagement';
+import { ReportsAnalytics } from './components/control-board/ReportsAnalytics';
+import { CreatorBoardSidebar } from './components/creator-board/CreatorBoardSidebar';
+import { CreatorDashboardView } from './components/creator-board/CreatorDashboardView';
+import { CreatorMyProjects } from './components/creator-board/CreatorMyProjects';
+import { CreatorUploadAssets } from './components/creator-board/CreatorUploadAssets';
+import { CreatorAssetLibrary } from './components/creator-board/CreatorAssetLibrary';
+import { EditorBoardSidebar } from './components/editor-board/EditorBoardSidebar';
+import { EditorDashboardView } from './components/editor-board/EditorDashboardView';
+import { EditorMyProjects } from './components/editor-board/EditorMyProjects';
+import { EditorAssetLibrary } from './components/editor-board/EditorAssetLibrary';
+import { EditorWorkspace } from './components/editor-board/EditorWorkspace';
+import { EditorReviewQueue } from './components/editor-board/EditorReviewQueue';
+import { EditorVersions } from './components/editor-board/EditorVersions';
+import { EditorTemplates } from './components/editor-board/EditorTemplates';
+import { ClientBoardSidebar } from './components/client-board/ClientBoardSidebar';
+import { ClientDashboardView } from './components/client-board/ClientDashboardView';
+import { ClientCalendarView } from './components/client-board/ClientCalendarView';
+import { ClientApprovalsView } from './components/client-board/ClientApprovalsView';
+import { ClientReportsView } from './components/client-board/ClientReportsView';
+import { ClientMessagesView } from './components/client-board/ClientMessagesView';
+import { ClientDocumentsView } from './components/client-board/ClientDocumentsView';
+import { ClientSettingsView } from './components/client-board/ClientSettingsView';
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { TwoLayerSidebar } from './components/sidebar/TwoLayerSidebar';
 import { SalesBoard } from './components/SalesBoard';
-import { InboxAlerts } from './components/InboxAlerts';
-import { Tasks } from './components/Tasks';
-import { Pipeline } from './components/Pipeline';
-import { KPIReports } from './components/KPIReports';
-import { NewDirectionBoard } from './components/NewDirectionBoard';
-import { NewEditorBoard } from './components/NewEditorBoard';
-import { NewCreatorBoard } from './components/NewCreatorBoard';
-import { NewCorporateBoard } from './components/NewCorporateBoard';
-import { NewClientPortal } from './components/NewClientPortal';
 import { DirectionBoard } from './components/DirectionBoard';
 import { EditorBoard } from './components/EditorBoard';
 import { CreatorBoard } from './components/CreatorBoard';
 import { SupportBoard } from './components/SupportBoard';
-import { Schedule } from './components/Schedule';
-import { ScheduleBoard } from './components/ScheduleBoard';
-import { SNSNews } from './components/SNSNews';
-import { PALSSAI } from './components/PALSSAI';
-import { TelemarketingList } from './components/TelemarketingList';
-import { Chat } from './components/Chat';
-import { ManagementOverview } from './components/ManagementOverview';
-import { ManagementContracts } from './components/ManagementContracts';
-import { ManagementApprovals } from './components/ManagementApprovals';
-import { FinancialStatus } from './components/FinancialStatus';
 import { ClientDashboard } from './components/ClientDashboard';
-import { VideoReview } from './components/VideoReview';
-import { MeetingMinutes } from './components/MeetingMinutes';
-import { ClientTasks } from './components/ClientTasks';
-import { ClientAIReport } from './components/ClientAIReport';
-import { ClientAssetLibrary } from './components/ClientAssetLibrary';
-import { ShootCalendar } from './components/ShootCalendar';
-import { AssetUpload } from './components/AssetUpload';
-import { CreatorPortfolio } from './components/CreatorPortfolio';
-import { ClientDetailPage } from './components/ClientDetailPage';
-import { Settings } from './components/Settings';
+import { InboxAlerts } from './components/InboxAlerts';
+import { Tasks } from './components/Tasks';
+import { KPIReports } from './components/KPIReports';
+import { Pipeline } from './components/Pipeline';
 import { Reports } from './components/Reports';
 import { Clients } from './components/Clients';
-import { PALSSChat } from './components/PALSSChat';
 import { PALSSAIHome } from './components/PALSSAIHome';
 import { AIResearch } from './components/AIResearch';
+import { SNSNews } from './components/SNSNews';
+import { Chat } from './components/Chat';
+import { TelemarketingList } from './components/TelemarketingList';
+import { ScheduleBoard } from './components/ScheduleBoard';
+import { ClientDetailPage } from './components/ClientDetailPage';
+import { Settings } from './components/Settings';
+import { NewEditorBoard } from './components/NewEditorBoard';
+import { NewCreatorBoard } from './components/NewCreatorBoard';
+import { NewClientPortal } from './components/NewClientPortal';
+import { NewCorporateBoard } from './components/NewCorporateBoard';
+import { PALSSChat } from './components/PALSSChat';
+import { ManagementOverview } from './components/management/ManagementOverview';
+import { FinancialStatus } from './components/management/FinancialStatus';
+import { ManagementContracts } from './components/management/ManagementContracts';
+import { ManagementApprovals } from './components/management/ManagementApprovals';
+import { ClientTasks } from './components/client/ClientTasks';
+import { VideoReview } from './components/client/VideoReview';
+import { MeetingMinutes } from './components/client/MeetingMinutes';
+import { ClientAIReport } from './components/client/ClientAIReport';
+import { ClientAssetLibrary } from './components/client/ClientAssetLibrary';
+import { ShootCalendar } from './components/creator/ShootCalendar';
+import { AssetUpload } from './components/creator/AssetUpload';
+import { CreatorPortfolio } from './components/creator/CreatorPortfolio';
+import { DirectionApprovals } from './components/direction-board/DirectionApprovals';
+import { DirectionTasks } from './components/direction-board/DirectionTasks';
+import { DirectionClientDetail } from './components/direction-board/DirectionClientDetail';
+import { MyClients } from './components/direction-board/MyClients';
+import { DirectionDashboard } from './components/direction-board/DirectionDashboard';
 
+// PALSS SYSTEM - Main Application Component
 export default function App() {
   const [currentBoard, setCurrentBoard] = useState('sales');
   const [currentView, setCurrentView] = useState('home');
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedAIClientId, setSelectedAIClientId] = useState<string | null>(null);
+  const [selectedDirectionClientId, setSelectedDirectionClientId] = useState<string | null>(null);
+  const [selectedSalesClientId, setSelectedSalesClientId] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark' | 'feminine' | 'palss'>('palss');
   const [activeSettingsSection, setActiveSettingsSection] = useState('appearance');
   const [scheduleDate, setScheduleDate] = useState<Date>(new Date(2025, 11, 15)); // Dec 15, 2025
@@ -118,44 +153,66 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMaximized]);
 
-  useEffect(() => {
-    const rawPath = window.location.pathname;
-    const normalizedPath = rawPath.replace(/\/+$/, '') || '/';
-
-    if (normalizedPath === '/hearing') {
-      const redirectPath = `/palss-chat${window.location.search}${window.location.hash}`;
-      window.history.replaceState(null, '', redirectPath);
-      setCurrentBoard('palss-chat');
-      setCurrentView('palss-chat');
-      return;
-    }
-
-    if (normalizedPath === '/palss-chat') {
-      setCurrentBoard('palss-chat');
-      setCurrentView('palss-chat');
-    }
-  }, []);
-
   const renderView = () => {
     // Direction Board
     if (currentBoard === 'direction') {
       switch (currentView) {
+        case 'direction-dashboard':
         case 'direction-home':
-          return <NewDirectionBoard />;
+          return <DirectionDashboard 
+            onNavigate={setCurrentView}
+          />;
+        case 'my-clients':
+          return <MyClients 
+            onClientSelect={(clientId) => {
+              setSelectedDirectionClientId(clientId);
+              setCurrentView('direction-client-detail');
+            }}
+          />;
+        case 'tasks':
+          return <DirectionTasks />;
+        case 'direction-approvals':
+          return <DirectionApprovals />;
+        case 'direction-client-detail':
+          return <DirectionClientDetail 
+            clientId={selectedDirectionClientId || undefined}
+            onBack={() => setCurrentView('my-clients')}
+          />;
         case 'palss-ai':
-          return <PALSSAI boardType="direction" />;
-        case 'sns-news':
-          return <SNSNews />;
-        case 'chat':
-          return <Chat />;
-        case 'direction-projects':
-          return <DirectionBoard />;
-        case 'direction-production-schedule':
-          return <Schedule />;
-        case 'direction-resources':
+          return <PALSSAIHome 
+            onNavigate={(page, clientId) => {
+              setSelectedAIClientId(clientId);
+              setCurrentView(page);
+            }} 
+            theme={theme}
+          />;
+        case 'ai-research':
+          return selectedAIClientId ? (
+            <AIResearch 
+              clientId={selectedAIClientId}
+              onBack={() => setCurrentView('palss-ai')}
+            />
+          ) : (
+            <PALSSAIHome 
+              onNavigate={(page, clientId) => {
+                setSelectedAIClientId(clientId);
+                setCurrentView(page);
+              }} 
+              theme={theme}
+            />
+          );
+        case 'ai-proposal':
+        case 'ai-ideas':
+        case 'ai-document':
           return (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-8 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-              <p className="text-[#7B8794]">リソース管理画面は準備中です</p>
+            <div className="bg-card rounded-2xl border border-border p-8">
+              <p className="text-muted-foreground">このAI機能は準備中です</p>
+              <button 
+                onClick={() => setCurrentView('palss-ai')}
+                className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                戻る
+              </button>
             </div>
           );
         case 'schedule':
@@ -165,11 +222,22 @@ export default function App() {
             viewType={scheduleViewType}
             onViewTypeChange={setScheduleViewType}
           />;
+        case 'sns-news':
+          return <SNSNews />;
+        case 'chat':
+          return <Chat />;
         case 'settings':
+          const directionSection = currentView.startsWith('settings-') 
+            ? currentView.replace('settings-', '') 
+            : 'appearance';
           return (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-8 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-              <p className="text-[#7B8794]">設定画面は準備中です</p>
-            </div>
+            <Settings 
+              isDarkMode={theme === 'dark'}
+              onDarkModeToggle={(enabled) => setTheme(enabled ? 'dark' : 'light')}
+              theme={theme}
+              onThemeChange={setTheme}
+              activeSection={directionSection}
+            />
           );
         default:
           return <DirectionBoard />;
@@ -179,143 +247,165 @@ export default function App() {
     // Editor Board
     if (currentBoard === 'editor') {
       switch (currentView) {
-        case 'editor-home':
-          return <NewEditorBoard />;
-        case 'palss-ai':
-          return <PALSSAI boardType="editor" />;
-        case 'sns-news':
-          return <SNSNews />;
-        case 'chat':
-          return <Chat />;
-        case 'editor-my-tasks':
-          return <EditorBoard />;
-        case 'editor-asset-library':
-          return (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-8 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-              <p className="text-[#7B8794]">素材ライブラリは準備中です</p>
-            </div>
-          );
-        case 'editor-review-queue':
-          return <EditorBoard />;
-        case 'schedule':
-          return <ScheduleBoard 
-            selectedDate={scheduleDate}
-            onDateChange={setScheduleDate}
-            viewType={scheduleViewType}
-            onViewTypeChange={setScheduleViewType}
+        case 'editor-dashboard':
+          return <EditorDashboardView />;
+        case 'editor-projects':
+          return <EditorMyProjects />;
+        case 'editor-library':
+          return <EditorAssetLibrary />;
+        case 'editor-workspace':
+          return <EditorWorkspace />;
+        case 'editor-review':
+          return <EditorReviewQueue />;
+        case 'editor-versions':
+          return <EditorVersions />;
+        case 'editor-messages':
+          return <Chat />; // Reuse Chat component
+        case 'editor-templates':
+          return <EditorTemplates />;
+        case 'editor-settings':
+          return <Settings 
+            isDarkMode={theme === 'dark'}
+            onDarkModeToggle={(enabled) => setTheme(enabled ? 'dark' : 'light')}
+            theme={theme}
+            onThemeChange={setTheme}
+            activeSection="appearance"
           />;
-        case 'settings':
-          return (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-8 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-              <p className="text-[#7B8794]">設定画面は準備中です</p>
-            </div>
-          );
+        case 'editor-home':
         default:
-          return <EditorBoard />;
+          return <EditorDashboardView />;
       }
     }
 
     // Creator Board
     if (currentBoard === 'creator') {
       switch (currentView) {
-        case 'creator-home':
-          return <NewCreatorBoard />;
-        case 'palss-ai':
-          return <PALSSAI boardType="creator" />;
-        case 'sns-news':
-          return <SNSNews />;
-        case 'chat':
-          return <Chat />;
+        case 'creator-dashboard':
+          return <CreatorDashboardView />;
+        case 'creator-projects':
+          return <CreatorMyProjects />;
         case 'creator-calendar':
           return <ShootCalendar />;
-        case 'creator-projects':
-          return <CreatorBoard />;
         case 'creator-upload':
-          return <AssetUpload />;
+          return <CreatorUploadAssets />;
+        case 'creator-library':
+          return <CreatorAssetLibrary />;
+        case 'creator-messages':
+          return <Chat />; // Reuse Chat component
         case 'creator-portfolio':
           return <CreatorPortfolio />;
-        case 'settings':
-          return (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-8 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-              <p className="text-[#7B8794]">設定画面は準備中です</p>
-            </div>
-          );
+        case 'creator-settings':
+          return <Settings 
+            isDarkMode={theme === 'dark'}
+            onDarkModeToggle={(enabled) => setTheme(enabled ? 'dark' : 'light')}
+            theme={theme}
+            onThemeChange={setTheme}
+            activeSection="appearance"
+          />;
+        case 'creator-home':
         default:
-          return <CreatorBoard />;
+          return <CreatorDashboardView />;
       }
     }
 
-    // Management Board (Support)
+    // Management Board (Support) - Control Board
     if (currentBoard === 'support') {
       switch (currentView) {
+        case 'control-dashboard':
         case 'management-home':
-          return <NewCorporateBoard />;
+          return <ExecutiveDashboard />;
+        case 'control-financial':
+          return <FinancialOverview />;
+        case 'control-projects':
+          return <ProjectPortfolio />;
+        case 'control-team':
+          return <TeamPerformance />;
+        case 'control-clients':
+          return <ClientIntelligence />;
+        case 'control-approvals':
+          return <ApprovalCenter />;
+        case 'control-risk':
+          return <RiskManagement />;
+        case 'control-reports':
+          return <ReportsAnalytics />;
+        case 'control-ai':
         case 'palss-ai':
-          return <PALSSAI boardType="support" />;
-        case 'sns-news':
-          return <SNSNews />;
-        case 'chat':
-          return <Chat />;
-        case 'management-overview':
-          return <ManagementOverview />;
-        case 'management-financial':
-          return <FinancialStatus />;
-        case 'management-contracts':
-          return <ManagementContracts />;
-        case 'management-approvals':
-          return <ManagementApprovals />;
-        case 'schedule':
-          return <ScheduleBoard 
-            selectedDate={scheduleDate}
-            onDateChange={setScheduleDate}
-            viewType={scheduleViewType}
-            onViewTypeChange={setScheduleViewType}
+          return <PALSSAIHome 
+            onNavigate={(page, clientId) => {
+              setSelectedAIClientId(clientId);
+              setCurrentView(page);
+            }} 
+            theme={theme}
           />;
-        case 'settings':
+        case 'ai-research':
+          return selectedAIClientId ? (
+            <AIResearch 
+              clientId={selectedAIClientId}
+              onBack={() => setCurrentView('palss-ai')}
+            />
+          ) : (
+            <PALSSAIHome 
+              onNavigate={(page, clientId) => {
+                setSelectedAIClientId(clientId);
+                setCurrentView(page);
+              }} 
+              theme={theme}
+            />
+          );
+        case 'ai-proposal':
+        case 'ai-ideas':
+        case 'ai-document':
           return (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-8 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-              <p className="text-[#7B8794]">設定画面は準備中です</p>
+            <div className="bg-card rounded-2xl border border-border p-8">
+              <p className="text-muted-foreground">このAI機能は準備中です</p>
+              <button 
+                onClick={() => setCurrentView('palss-ai')}
+                className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                戻る
+              </button>
             </div>
           );
+        case 'control-news':
+        case 'sns-news':
+          return <SNSNews />;
+        case 'control-messages':
+        case 'chat':
+          return <Chat />;
+        case 'control-settings':
+        case 'settings':
+          return <Settings 
+            isDarkMode={theme === 'dark'}
+            onDarkModeToggle={(enabled) => setTheme(enabled ? 'dark' : 'light')}
+            theme={theme}
+            onThemeChange={setTheme}
+            activeSection="appearance"
+          />;
         default:
-          return <SupportBoard />;
+          return <ExecutiveDashboard />;
       }
     }
 
     // Client Board
     if (currentBoard === 'client') {
       switch (currentView) {
+        case 'client-dashboard':
+          return <ClientDashboardView />;
+        case 'client-calendar':
+          return <ClientCalendarView />;
+        case 'client-approvals':
+          return <ClientApprovalsView />;
+        case 'client-reports':
+          return <ClientReportsView />;
+        case 'client-messages':
+          return <ClientMessagesView />;
+        case 'client-documents':
+          return <ClientDocumentsView />;
+        case 'client-settings':
+          return <ClientSettingsView />;
         case 'client-home':
-          return <NewClientPortal />;
-        case 'palss-ai':
-          return <PALSSAI boardType="client" />;
-        case 'sns-news':
-          return <SNSNews />;
-        case 'client-tasks':
-          return <ClientTasks />;
-        case 'client-video-review':
-          return <VideoReview />;
-        case 'client-meeting-minutes':
-          return <MeetingMinutes />;
-        case 'client-ai-report':
-          return <ClientAIReport />;
-        case 'client-asset-library':
-          return <ClientAssetLibrary />;
-        case 'schedule':
-          return <ScheduleBoard 
-            selectedDate={scheduleDate}
-            onDateChange={setScheduleDate}
-            viewType={scheduleViewType}
-            onViewTypeChange={setScheduleViewType}
-          />;
-        case 'settings':
-          return (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-8 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
-              <p className="text-[#7B8794]">設定画面は準備中です</p>
-            </div>
-          );
         default:
-          return <ClientDashboard />;
+          return <ClientDashboardView />;
       }
     }
 
@@ -325,6 +415,18 @@ export default function App() {
         return <PALSSChat />;
       case 'home':
         return <SalesBoard onNavigate={setCurrentView} />;
+      case 'my-clients':
+        return <MyClients 
+          onClientSelect={(clientId) => {
+            setSelectedSalesClientId(clientId);
+            setCurrentView('sales-client-detail');
+          }}
+        />;
+      case 'sales-client-detail':
+        return <DirectionClientDetail 
+          clientId={selectedSalesClientId || undefined}
+          onBack={() => setCurrentView('my-clients')}
+        />;
       case 'inbox-alerts':
         return <InboxAlerts />;
       case 'tasks':
@@ -432,6 +534,47 @@ export default function App() {
   };
 
   const renderSidebar = () => {
+    // Control Board (Support) uses simple sidebar
+    if (currentBoard === 'support') {
+      return (
+        <ControlBoardSidebar
+          currentView={currentView}
+          onViewChange={setCurrentView}
+        />
+      );
+    }
+    
+    // Client Board uses simple sidebar
+    if (currentBoard === 'client') {
+      return (
+        <ClientBoardSidebar
+          currentView={currentView}
+          onViewChange={setCurrentView}
+        />
+      );
+    }
+    
+    // Creator Board uses simple sidebar
+    if (currentBoard === 'creator') {
+      return (
+        <CreatorBoardSidebar
+          currentView={currentView}
+          onViewChange={setCurrentView}
+        />
+      );
+    }
+    
+    // Editor Board uses simple sidebar
+    if (currentBoard === 'editor') {
+      return (
+        <EditorBoardSidebar
+          currentView={currentView}
+          onViewChange={setCurrentView}
+        />
+      );
+    }
+    
+    // Other boards use TwoLayerSidebar
     return (
       <TwoLayerSidebar
         currentView={currentView}
@@ -454,10 +597,14 @@ export default function App() {
   };
 
   // Calculate sidebar width:
-  // - Home: Icon Rail + Context Drawer (64px + 280px = 344px)
-  // - Minimized: Icon Rail + Compact Drawer (64px + 48px = 112px)
-  // - Expanded: Icon Rail + Context Drawer (64px + 280px = 344px)
+  // - Client/Creator/Editor Board: Simple sidebar (280px)
+  // - Other boards: TwoLayerSidebar
+  //   - Minimized: Icon Rail + Compact Drawer (64px + 48px = 112px)
+  //   - Expanded: Icon Rail + Context Drawer (64px + 280px = 344px)
   const getSidebarWidth = () => {
+    if (currentBoard === 'client' || currentBoard === 'creator' || currentBoard === 'editor') {
+      return 280; // Simple sidebar for Client/Creator/Editor Board
+    }
     if (isMinimized) {
       return 112; // Icon Rail + Compact Drawer (64px + 48px)
     }
@@ -472,7 +619,7 @@ export default function App() {
         setCurrentView('home');
         break;
       case 'direction':
-        setCurrentView('direction-home');
+        setCurrentView('direction-dashboard');
         break;
       case 'editor':
         setCurrentView('editor-home');

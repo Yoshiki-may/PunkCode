@@ -12,7 +12,7 @@ export function Header({ currentBoard, onBoardChange, theme = 'dark' }: HeaderPr
     { id: 'direction', label: 'Direction' },
     { id: 'editor', label: 'Editor' },
     { id: 'creator', label: 'Creator' },
-    { id: 'support', label: 'Corporate' },
+    { id: 'support', label: 'Control' },
     { id: 'client', label: 'Client' },
     { id: 'palss-chat', label: 'PALSS CHAT' },
   ];

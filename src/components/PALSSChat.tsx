@@ -102,56 +102,23 @@ export function PALSSChat() {
     setInputValue('');
   };
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (!inputValue.trim()) return;
 
-    if (!isActive) {
-      setIsActive(true);
-    }
-
-    const userMessage = inputValue.trim();
-    const newMessages = [...messages, { role: 'user' as const, content: userMessage }];
+    const newMessages = [...messages, { role: 'user' as const, content: inputValue }];
     setMessages(newMessages);
     setInputValue('');
 
-    const params = new URLSearchParams(window.location.search);
-    const clientId = params.get('clientId') || undefined;
-    const sessionId = params.get('sessionId') || undefined;
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: userMessage,
-          clientId,
-          sessionId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Chat request failed');
-      }
-
-      const data = (await response.json()) as { reply?: string };
+    // Simulate AI response
+    setTimeout(() => {
       setMessages([
         ...newMessages,
         {
           role: 'assistant',
-          content: data.reply || '??????????????????????????',
-        },
+          content: 'ありがとうございます。詳細をヒアリングさせていただきます。より具体的な情報を教えていただけますか？'
+        }
       ]);
-    } catch {
-      setMessages([
-        ...newMessages,
-        {
-          role: 'assistant',
-          content: '??AI????????????????????????????',
-        },
-      ]);
-    }
+    }, 1000);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

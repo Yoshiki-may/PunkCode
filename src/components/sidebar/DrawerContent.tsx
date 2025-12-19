@@ -101,11 +101,10 @@ export function DrawerContent({
         />
         <NavItem
           icon={Building2}
-          label="Corporate"
+          label="Control"
           active={currentBoard === 'support'}
           onClick={() => {
             onBoardChange('support');
-            onViewChange('management-home');
           }}
         />
         <NavItem

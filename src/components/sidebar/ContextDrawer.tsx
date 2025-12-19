@@ -13,6 +13,7 @@ interface ContextDrawerProps {
   onItemClick?: (itemId: string) => void;
   currentView?: string;
   onViewChange?: (view: string) => void;
+  currentBoard?: string;
 }
 
 export function ContextDrawer({ 
@@ -25,7 +26,8 @@ export function ContextDrawer({
   activeItem = '',
   onItemClick = () => {},
   currentView = '',
-  onViewChange = () => {}
+  onViewChange = () => {},
+  currentBoard
 }: ContextDrawerProps) {
   // Settings should never show compact drawer
   const isSettings = activeItem === 'settings';
@@ -39,6 +41,7 @@ export function ContextDrawer({
         onExpand={onExpand}
         currentView={currentView}
         onViewChange={onViewChange}
+        currentBoard={currentBoard}
       />
     );
   }

@@ -1,11 +1,15 @@
-import { DirectionNextAction } from './direction-board/DirectionNextAction';
-import { UnapprovedList } from './direction-board/UnapprovedList';
-import { DirectionKPI } from './direction-board/DirectionKPI';
-import { ProductionPipeline } from './direction-board/ProductionPipeline';
-import { DirectionAlerts } from './direction-board/DirectionAlerts';
-import { PostingCalendar } from './direction-board/PostingCalendar';
+import { TodayFocus } from './direction-board/TodayFocus';
+import { ApprovalsCard } from './direction-board/ApprovalsCard';
+import { PipelineHealthCard } from './direction-board/PipelineHealthCard';
+import { UpcomingDeadlinesCard } from './direction-board/UpcomingDeadlinesCard';
+import { WorkloadCard } from './direction-board/WorkloadCard';
+import { ClientWatchlistCard } from './direction-board/ClientWatchlistCard';
 
-export function NewDirectionBoard() {
+interface NewDirectionBoardProps {
+  onNavigate?: (view: string) => void;
+}
+
+export function NewDirectionBoard({ onNavigate }: NewDirectionBoardProps) {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
@@ -16,31 +20,28 @@ export function NewDirectionBoard() {
         </div>
       </div>
 
-      {/* 2 Column Layout */}
-      <div className="flex gap-6">
-        {/* Left Column - Main Content */}
-        <div className="flex-1 space-y-6">
-          {/* Next Action - 最重要アクション */}
-          <DirectionNextAction />
+      {/* 1段目 - My Clients */}
+      <div className="grid grid-cols-1 gap-6">
+        <ClientWatchlistCard 
+          onNavigate={onNavigate}
+        />
+      </div>
 
-          {/* Unapproved List - 未承認一覧 */}
-          <UnapprovedList />
+      {/* 2段目 - Approvals（横長） */}
+      <div className="grid grid-cols-1 gap-6">
+        <ApprovalsCard onNavigate={onNavigate} />
+      </div>
 
-          {/* Production Pipeline - 制作プロセス */}
-          <ProductionPipeline />
-        </div>
+      {/* 3段目 - Today Focus */}
+      <div className="grid grid-cols-1 gap-6">
+        <TodayFocus onNavigate={onNavigate} />
+      </div>
 
-        {/* Right Column - Sidebar Widgets */}
-        <div className="w-[380px] space-y-6">
-          {/* KPI Snapshot */}
-          <DirectionKPI />
-
-          {/* Alerts */}
-          <DirectionAlerts />
-
-          {/* Posting Calendar */}
-          <PostingCalendar />
-        </div>
+      {/* 4段目 - 進行の健康状態：俯瞰して詰まりを見つける */}
+      <div className="grid grid-cols-3 gap-6">
+        <PipelineHealthCard onNavigate={onNavigate} />
+        <UpcomingDeadlinesCard onNavigate={onNavigate} />
+        <WorkloadCard onNavigate={onNavigate} />
       </div>
     </div>
   );
