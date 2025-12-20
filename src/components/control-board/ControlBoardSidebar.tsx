@@ -10,7 +10,8 @@ import {
   MessageSquare,
   Settings,
   Newspaper,
-  Sparkles
+  Sparkles,
+  UserPlus
 } from 'lucide-react';
 
 interface ControlBoardSidebarProps {
@@ -43,6 +44,12 @@ export function ControlBoardSidebar({ currentView, onViewChange }: ControlBoardS
       icon: Users, 
       label: 'Team Performance',
       description: 'チームパフォーマンス'
+    },
+    { 
+      id: 'control-invite', 
+      icon: UserPlus, 
+      label: 'Team Members',
+      description: 'メンバー招待・管理'
     },
     { 
       id: 'control-clients', 

@@ -1,3 +1,6 @@
+import { ClientRegistration } from './components/ClientRegistration';
+import { TeamInvite } from './components/control-board/TeamInvite';
+import { LandingPage } from './components/LandingPage';
 import { ControlBoardSidebar } from './components/control-board/ControlBoardSidebar';
 import { ExecutiveDashboard } from './components/control-board/ExecutiveDashboard';
 import { FinancialOverview } from './components/control-board/FinancialOverview';
@@ -76,6 +79,8 @@ import { DirectionDashboard } from './components/direction-board/DirectionDashbo
 
 // PALSS SYSTEM - Main Application Component
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isClientRegistered, setIsClientRegistered] = useState(false);
   const [currentBoard, setCurrentBoard] = useState('sales');
   const [currentView, setCurrentView] = useState('home');
   const [isMinimized, setIsMinimized] = useState(false);
@@ -152,6 +157,30 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMaximized]);
+
+  // Show landing page if not logged in
+  if (!isLoggedIn) {
+    return <LandingPage onLogin={() => setIsLoggedIn(true)} theme={theme} />;
+  }
+
+  // Show client registration if logged in but not registered (for client users)
+  if (isLoggedIn && !isClientRegistered && currentBoard === 'client') {
+    return (
+      <ClientRegistration 
+        onComplete={() => {
+          setIsClientRegistered(true);
+          setCurrentBoard('client');
+          setCurrentView('client-home');
+        }}
+        onBackToLanding={() => {
+          setIsLoggedIn(false);
+          setIsClientRegistered(false);
+          setCurrentBoard('sales');
+        }}
+        theme={theme} 
+      />
+    );
+  }
 
   const renderView = () => {
     // Direction Board
@@ -320,6 +349,8 @@ export default function App() {
           return <ProjectPortfolio />;
         case 'control-team':
           return <TeamPerformance />;
+        case 'control-invite':
+          return <TeamInvite />;
         case 'control-clients':
           return <ClientIntelligence />;
         case 'control-approvals':
@@ -612,6 +643,12 @@ export default function App() {
   };
 
   const handleBoardChange = (board: string) => {
+    // If switching to Client Board and not registered yet, show registration
+    if (board === 'client' && !isClientRegistered) {
+      setCurrentBoard(board);
+      return;
+    }
+
     setCurrentBoard(board);
     // Reset to appropriate home view when switching boards
     switch (board) {
