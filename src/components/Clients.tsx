@@ -19,6 +19,7 @@ import {
   Edit,
   Archive
 } from 'lucide-react';
+import { AddClientModal, NewClientData } from './AddClientModal';
 
 interface Client {
   id: string;
@@ -192,6 +193,19 @@ export function Clients({ onClientSelect }: ClientsProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'paused'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'followers' | 'engagement' | 'startDate'>('name');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [clientsList, setClientsList] = useState<Client[]>(mockClients);
+  const [newClient, setNewClient] = useState({
+    name: '',
+    instagramHandle: '',
+    industry: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    location: '',
+    contractStatus: 'pending' as 'active' | 'pending' | 'paused',
+    monthlyFee: 0,
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -245,8 +259,56 @@ export function Clients({ onClientSelect }: ClientsProps) {
     return '¥' + amount.toLocaleString();
   };
 
+  const handleAddClient = (newClientData: NewClientData) => {
+    if (!newClientData.name || !newClientData.contactPerson || !newClientData.email) {
+      return; // Validation
+    }
+
+    // Generate avatar from first 2 letters
+    const avatar = newClientData.name.substring(0, 2).toUpperCase();
+
+    const newId = (clientsList.length + 1).toString();
+    const today = new Date().toISOString().split('T')[0];
+
+    setClientsList([
+      ...clientsList,
+      {
+        id: newId,
+        name: newClientData.name,
+        avatar: avatar,
+        instagramHandle: newClientData.instagramHandle || '@' + newClientData.name.toLowerCase().replace(/\s+/g, '_'),
+        contractStatus: newClientData.contractStatus,
+        industry: newClientData.industry,
+        followers: 0,
+        engagement: 0,
+        monthlyFee: newClientData.monthlyFee,
+        startDate: today,
+        contactPerson: newClientData.contactPerson,
+        email: newClientData.email,
+        phone: newClientData.phone,
+        location: newClientData.location,
+        lastActivity: 'たった今',
+      },
+    ]);
+
+    // Reset form
+    setNewClient({
+      name: '',
+      instagramHandle: '',
+      industry: '',
+      contactPerson: '',
+      email: '',
+      phone: '',
+      location: '',
+      contractStatus: 'pending',
+      monthlyFee: 0,
+    });
+
+    setShowAddModal(false);
+  };
+
   // Filter and sort clients
-  const filteredClients = mockClients
+  const filteredClients = clientsList
     .filter(client => {
       const matchesSearch = client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           client.instagramHandle.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -270,10 +332,10 @@ export function Clients({ onClientSelect }: ClientsProps) {
     });
 
   const stats = {
-    total: mockClients.length,
-    active: mockClients.filter(c => c.contractStatus === 'active').length,
-    pending: mockClients.filter(c => c.contractStatus === 'pending').length,
-    paused: mockClients.filter(c => c.contractStatus === 'paused').length,
+    total: clientsList.length,
+    active: clientsList.filter(c => c.contractStatus === 'active').length,
+    pending: clientsList.filter(c => c.contractStatus === 'pending').length,
+    paused: clientsList.filter(c => c.contractStatus === 'paused').length,
   };
 
   return (
@@ -286,7 +348,7 @@ export function Clients({ onClientSelect }: ClientsProps) {
             全{stats.total}件のクライアント
           </p>
         </div>
-        <button className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-2">
+        <button className="px-4 py-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-2" onClick={() => setShowAddModal(true)}>
           <Plus className="w-4 h-4" />
           新規クライアント
         </button>
@@ -532,6 +594,13 @@ export function Clients({ onClientSelect }: ClientsProps) {
           </p>
         </div>
       )}
+
+      {/* Add Client Modal */}
+      <AddClientModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAddClient={handleAddClient}
+      />
     </div>
   );
 }

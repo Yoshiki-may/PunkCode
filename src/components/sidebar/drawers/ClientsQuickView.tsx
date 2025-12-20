@@ -1,5 +1,6 @@
-import { Users, Search, Plus, ChevronDown, ChevronUp, BarChart3, User, Clock } from 'lucide-react';
+import { Users, Search, Plus, ChevronDown, ChevronUp, BarChart3, User, Clock, X, Building2, Mail } from 'lucide-react';
 import { useState } from 'react';
+import { AddClientModal, NewClientData } from '../../AddClientModal';
 
 interface Client {
   id: string;
@@ -33,9 +34,8 @@ export function ClientsQuickView({
   const [statusFilter, setStatusFilter] = useState<'all' | 'negotiating' | 'contracted'>('all');
   const [negotiatingExpanded, setNegotiatingExpanded] = useState(true);
   const [contractedExpanded, setContractedExpanded] = useState(true);
-
-  // Mock client data
-  const clients: Client[] = [
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [clientsList, setClientsList] = useState<Client[]>([
     {
       id: '1',
       companyName: 'AXAS株式会社',
@@ -98,10 +98,10 @@ export function ClientsQuickView({
       status: 'contracted',
       owner: 'team',
     },
-  ];
+  ]);
 
   // Filter clients
-  const filteredClients = clients
+  const filteredClients = clientsList
     .filter(c => c.owner === scope)
     .filter(c => {
       if (statusFilter === 'all') return true;
@@ -120,8 +120,33 @@ export function ClientsQuickView({
   const contractedClients = filteredClients.filter(c => c.status === 'contracted');
 
   // Counts for all clients in scope
-  const allNegotiatingCount = clients.filter(c => c.owner === scope && c.status === 'negotiating').length;
-  const allContractedCount = clients.filter(c => c.owner === scope && c.status === 'contracted').length;
+  const allNegotiatingCount = clientsList.filter(c => c.owner === scope && c.status === 'negotiating').length;
+  const allContractedCount = clientsList.filter(c => c.owner === scope && c.status === 'contracted').length;
+
+  const handleAddClient = (newClientData: NewClientData) => {
+    if (!newClientData.name || !newClientData.contactPerson || !newClientData.email) {
+      return; // Validation
+    }
+
+    const newId = (clientsList.length + 1).toString();
+    
+    // Map contract status to negotiating/contracted
+    const status = newClientData.contractStatus === 'active' ? 'contracted' : 'negotiating';
+
+    setClientsList([
+      ...clientsList,
+      {
+        id: newId,
+        companyName: newClientData.name,
+        assignee: newClientData.contactPerson,
+        status: status,
+        owner: scope, // Use current scope
+        lastUpdate: 'たった今',
+      },
+    ]);
+
+    setShowAddModal(false);
+  };
 
   const getPriorityColor = (priority?: string) => {
     switch (priority) {
@@ -174,7 +199,7 @@ export function ClientsQuickView({
               className="w-full pl-9 pr-3 py-2 bg-input-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent text-xs transition-all"
             />
           </div>
-          <button className="flex items-center gap-1.5 px-2.5 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all text-xs">
+          <button className="flex items-center gap-1.5 px-2.5 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all text-xs" onClick={() => setShowAddModal(true)}>
             <Plus className="w-3.5 h-3.5" strokeWidth={2} />
           </button>
         </div>
@@ -369,6 +394,13 @@ export function ClientsQuickView({
           </div>
         )}
       </div>
+
+      {/* Add Client Modal */}
+      <AddClientModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAddClient={handleAddClient}
+      />
     </div>
   );
 }
