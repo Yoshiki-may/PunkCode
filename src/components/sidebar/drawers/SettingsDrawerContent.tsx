@@ -15,25 +15,25 @@ export function SettingsDrawerContent({ activeView, onViewChange }: SettingsDraw
       {/* Menu Sections - Positioned at bottom */}
       <div className="px-2 pb-4">
         {/* Account */}
-        <MenuSectionTitle title="Account" />
+        <MenuSectionTitle title="アカウント" />
         <div className="space-y-1">
           <MenuItem
             icon={User}
-            label="Profile"
+            label="プロフィール"
             onClick={() => onViewChange('settings-profile')}
             isActive={activeView === 'settings-profile'}
             hasArrow
           />
           <MenuItem
             icon={Bell}
-            label="Notifications"
+            label="通知設定"
             onClick={() => onViewChange('settings-notifications')}
             isActive={activeView === 'settings-notifications'}
             hasArrow
           />
           <MenuItem
             icon={Lock}
-            label="Privacy & Security"
+            label="プライバシー＆セキュリティ"
             onClick={() => onViewChange('settings-privacy')}
             isActive={activeView === 'settings-privacy'}
             hasArrow
@@ -41,11 +41,11 @@ export function SettingsDrawerContent({ activeView, onViewChange }: SettingsDraw
         </div>
 
         {/* Team */}
-        <MenuSectionTitle title="Team" />
+        <MenuSectionTitle title="チーム" />
         <div className="space-y-1">
           <MenuItem
             icon={Users}
-            label="Members"
+            label="メンバー"
             onClick={() => onViewChange('settings-members')}
             isActive={activeView === 'settings-members'}
             badge="12"
@@ -53,7 +53,7 @@ export function SettingsDrawerContent({ activeView, onViewChange }: SettingsDraw
           />
           <MenuItem
             icon={Shield}
-            label="Roles & Permissions"
+            label="権限管理"
             onClick={() => onViewChange('settings-permissions')}
             isActive={activeView === 'settings-permissions'}
             hasArrow
@@ -61,18 +61,18 @@ export function SettingsDrawerContent({ activeView, onViewChange }: SettingsDraw
         </div>
 
         {/* System */}
-        <MenuSectionTitle title="System" />
+        <MenuSectionTitle title="システム" />
         <div className="space-y-1">
           <MenuItem
             icon={Palette}
-            label="Appearance"
+            label="外観"
             onClick={() => onViewChange('settings-appearance')}
             isActive={activeView === 'settings-appearance'}
             hasArrow
           />
           <MenuItem
             icon={Zap}
-            label="Integrations"
+            label="連携サービス"
             onClick={() => onViewChange('settings-integrations')}
             isActive={activeView === 'settings-integrations'}
             badge="5"
@@ -80,7 +80,7 @@ export function SettingsDrawerContent({ activeView, onViewChange }: SettingsDraw
           />
           <MenuItem
             icon={HelpCircle}
-            label="Help & Support"
+            label="ヘルプ＆サポート"
             onClick={() => onViewChange('settings-help')}
             isActive={activeView === 'settings-help'}
             hasArrow

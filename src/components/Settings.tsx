@@ -1,4 +1,11 @@
 import { Moon, Sun, Sparkles, Leaf } from 'lucide-react';
+import { ProfileSettings } from './settings/ProfileSettings';
+import { NotificationSettings } from './settings/NotificationSettings';
+import { PrivacySettings } from './settings/PrivacySettings';
+import { MembersSettings } from './settings/MembersSettings_Complete';
+import { PermissionsSettings } from './settings/PermissionsSettings_Complete';
+import { IntegrationsSettings } from './settings/IntegrationsSettings_Complete';
+import { HelpSettings } from './settings/HelpSettings_Complete';
 
 interface SettingsProps {
   isDarkMode: boolean;
@@ -9,6 +16,36 @@ interface SettingsProps {
 }
 
 export function Settings({ isDarkMode, onDarkModeToggle, activeSection = 'appearance', theme = 'light', onThemeChange }: SettingsProps) {
+  // Route to different setting pages based on activeSection
+  if (activeSection === 'profile') {
+    return <ProfileSettings />;
+  }
+
+  if (activeSection === 'notifications') {
+    return <NotificationSettings />;
+  }
+
+  if (activeSection === 'privacy') {
+    return <PrivacySettings />;
+  }
+
+  if (activeSection === 'members') {
+    return <MembersSettings />;
+  }
+
+  if (activeSection === 'permissions') {
+    return <PermissionsSettings />;
+  }
+
+  if (activeSection === 'integrations') {
+    return <IntegrationsSettings />;
+  }
+
+  if (activeSection === 'help') {
+    return <HelpSettings />;
+  }
+
+  // Default to Appearance settings
   return (
     <div className="flex-1 overflow-y-auto flex items-center justify-center p-8">
       <div className="max-w-4xl w-full">
@@ -109,26 +146,6 @@ export function Settings({ isDarkMode, onDarkModeToggle, activeSection = 'appear
                     </div>
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Profile Section */}
-          {activeSection === 'profile' && (
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h2 className="text-card-foreground mb-4">プロフィール</h2>
-              <div className="text-sm text-muted-foreground">
-                プロフィール設定は準備中です
-              </div>
-            </div>
-          )}
-
-          {/* Notifications Section */}
-          {activeSection === 'notifications' && (
-            <div className="bg-card rounded-xl border border-border p-6">
-              <h2 className="text-card-foreground mb-4">通知</h2>
-              <div className="text-sm text-muted-foreground">
-                通知設定は準備中です
               </div>
             </div>
           )}

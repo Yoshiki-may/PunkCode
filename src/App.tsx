@@ -76,6 +76,7 @@ import { DirectionTasks } from './components/direction-board/DirectionTasks';
 import { DirectionClientDetail } from './components/direction-board/DirectionClientDetail';
 import { MyClients } from './components/direction-board/MyClients';
 import { DirectionDashboard } from './components/direction-board/DirectionDashboard';
+import { ToastContainer } from './components/ui/Toast';
 
 // PALSS SYSTEM - Main Application Component
 export default function App() {
@@ -727,6 +728,7 @@ export default function App() {
           </div>
         </div>
       )}
+      <ToastContainer />
     </div>
   );
 }
