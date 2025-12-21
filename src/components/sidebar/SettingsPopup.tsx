@@ -48,26 +48,26 @@ export function SettingsPopup({ onClose, onViewChange, activeView }: SettingsPop
 
   const sections: SettingsSection[] = [
     {
-      title: 'Account',
+      title: 'アカウント',
       items: [
-        { id: 'settings-profile', icon: User, label: 'Profile' },
-        { id: 'settings-notifications', icon: Bell, label: 'Notifications' },
-        { id: 'settings-privacy', icon: Lock, label: 'Privacy & Security' },
+        { id: 'settings-profile', icon: User, label: 'プロフィール' },
+        { id: 'settings-notifications', icon: Bell, label: '通知設定' },
+        { id: 'settings-privacy', icon: Lock, label: 'プライバシー＆セキュリティ' },
       ],
     },
     {
-      title: 'Team',
+      title: 'チーム',
       items: [
-        { id: 'settings-members', icon: Users, label: 'Members', badge: '12' },
-        { id: 'settings-permissions', icon: Shield, label: 'Roles & Permissions' },
+        { id: 'settings-members', icon: Users, label: 'メンバー', badge: '12' },
+        { id: 'settings-permissions', icon: Shield, label: '権限管理' },
       ],
     },
     {
-      title: 'System',
+      title: 'システム',
       items: [
-        { id: 'settings-appearance', icon: Palette, label: 'Appearance' },
-        { id: 'settings-integrations', icon: Zap, label: 'Integrations', badge: '5' },
-        { id: 'settings-help', icon: HelpCircle, label: 'Help & Support' },
+        { id: 'settings-appearance', icon: Palette, label: '外観' },
+        { id: 'settings-integrations', icon: Zap, label: '連携サービス', badge: '5' },
+        { id: 'settings-help', icon: HelpCircle, label: 'ヘルプ＆サポート' },
       ],
     },
   ];
@@ -89,7 +89,7 @@ export function SettingsPopup({ onClose, onViewChange, activeView }: SettingsPop
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h3 className="text-base text-card-foreground">Settings</h3>
+          <h3 className="text-base text-card-foreground">設定</h3>
           <button
             onClick={onClose}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all"
