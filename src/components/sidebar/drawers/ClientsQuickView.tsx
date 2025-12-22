@@ -1,6 +1,7 @@
 import { Users, Search, Plus, ChevronDown, ChevronUp, BarChart3, User, Clock, X, Building2, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { AddClientModal, NewClientData } from '../../AddClientModal';
+import { getAllClients, ClientData } from '../../../utils/clientData';
 
 interface Client {
   id: string;
@@ -35,70 +36,25 @@ export function ClientsQuickView({
   const [negotiatingExpanded, setNegotiatingExpanded] = useState(true);
   const [contractedExpanded, setContractedExpanded] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [clientsList, setClientsList] = useState<Client[]>([
-    {
-      id: '1',
-      companyName: 'AXAS株式会社',
-      assignee: '田中太郎',
-      nextAction: '提案資料提出',
-      deadline: '12/14',
-      status: 'negotiating',
-      owner: 'mine',
-      priority: 'high',
-    },
-    {
-      id: '2',
-      companyName: 'BAYMAX株式会社',
-      assignee: '佐藤花子',
-      nextAction: 'フォローアップ',
-      deadline: '12/15',
-      status: 'negotiating',
-      owner: 'mine',
-      priority: 'medium',
-    },
-    {
-      id: '3',
-      companyName: 'クリエイティブワークス',
-      assignee: '鈴木一郎',
-      lastUpdate: '3時間前',
-      status: 'negotiating',
-      owner: 'mine',
-      priority: 'low',
-    },
-    {
-      id: '4',
-      companyName: 'エンタープライズ株式会社',
-      assignee: '田中太郎',
-      lastUpdate: '2時間前',
-      status: 'contracted',
-      owner: 'mine',
-    },
-    {
-      id: '5',
-      companyName: 'フューチャーデザイン',
-      assignee: '佐藤花子',
-      lastUpdate: '5時間前',
-      status: 'contracted',
-      owner: 'mine',
-    },
-    {
-      id: '6',
-      companyName: 'デジタルフロンティア',
-      assignee: '高橋美咲',
-      nextAction: 'ヒアリング',
-      deadline: '12/16',
-      status: 'negotiating',
-      owner: 'team',
-    },
-    {
-      id: '7',
-      companyName: 'スマートビジネス',
-      assignee: '伊藤健太',
-      lastUpdate: '1日前',
-      status: 'contracted',
-      owner: 'team',
-    },
-  ]);
+  
+  // 共通クライアントデータから取得
+  const allClientsData = getAllClients();
+  
+  // クライアントデータを変換（共通データの contractStatus を使用）
+  const [clientsList, setClientsList] = useState<Client[]>(
+    allClientsData.map((client, index) => ({
+      id: client.id,
+      companyName: client.name,
+      assignee: client.contactPerson,
+      lastUpdate: client.contractStatus === 'active' ? '2時間前' : undefined,
+      nextAction: client.contractStatus === 'negotiating' ? 'フォローアップ' : undefined,
+      deadline: client.contractStatus === 'negotiating' ? '12/25' : undefined,
+      // 共通データの contractStatus を使用（active を contracted に変換）
+      status: (client.contractStatus === 'active' ? 'contracted' : client.contractStatus === 'negotiating' ? 'negotiating' : 'contracted') as 'negotiating' | 'contracted',
+      owner: (index < 4 ? 'mine' : 'team') as 'mine' | 'team',
+      priority: index === 0 ? 'high' : index === 1 ? 'medium' : index === 2 ? 'low' : undefined,
+    }))
+  );
 
   // Filter clients
   const filteredClients = clientsList

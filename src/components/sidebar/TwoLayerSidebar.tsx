@@ -42,10 +42,24 @@ export function TwoLayerSidebar({
   sidebarWidth,
   onSidebarWidthChange
 }: TwoLayerSidebarProps) {
+  // Define constants at the top
+  const ICON_RAIL_WIDTH = 64;
+  
   const [activeRailItem, setActiveRailItem] = useState<string>('home');
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    // Load saved state from localStorage
+    const saved = localStorage.getItem('palss-sidebar-minimized');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [showSettingsPopup, setShowSettingsPopup] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [savedSidebarWidth, setSavedSidebarWidth] = useState<number | null>(null);
+
+  // Persist minimized state
+  useEffect(() => {
+    localStorage.setItem('palss-sidebar-minimized', JSON.stringify(isMinimized));
+  }, [isMinimized]);
 
   // Sync activeRailItem with currentView
   useEffect(() => {
@@ -103,7 +117,29 @@ export function TwoLayerSidebar({
   };
 
   const handleSettingsClick = () => {
+    // 設定を開く前に現在のサイドバー幅を保存
+    if (sidebarWidth) {
+      setSavedSidebarWidth(sidebarWidth);
+    }
+    // サイドバー幅をIcon Railのみにリセット
+    onSidebarWidthChange?.(ICON_RAIL_WIDTH);
     setShowSettingsPopup(true);
+  };
+
+  const handleSettingsClose = () => {
+    setShowSettingsPopup(false);
+    // 設定を閉じたら保存していたサイドバー幅を復元
+    if (savedSidebarWidth) {
+      onSidebarWidthChange?.(savedSidebarWidth);
+      setSavedSidebarWidth(null);
+    }
+  };
+
+  const handleViewChangeFromSettings = (view: string) => {
+    // 設定ポップアップから遷移する時は、まず設定を閉じて幅を復元
+    handleSettingsClose();
+    // その後、ビューを変更
+    onViewChange(view);
   };
 
   const handleFullscreenClick = () => {
@@ -214,7 +250,6 @@ export function TwoLayerSidebar({
   const shouldShowDrawer = activeRailItem !== 'settings';
 
   // Calculate the actual drawer width (subtract Icon Rail width of 64px)
-  const ICON_RAIL_WIDTH = 64;
   const actualDrawerWidth = sidebarWidth ? sidebarWidth - ICON_RAIL_WIDTH : drawerWidth;
 
   return (
@@ -249,20 +284,38 @@ export function TwoLayerSidebar({
       {/* Resize Handle */}
       {shouldShowDrawer && !isMinimized && (
         <div
-          className="fixed top-16 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-50 group"
-          style={{ left: `${sidebarWidth ? sidebarWidth : (ICON_RAIL_WIDTH + drawerWidth)}px` }}
+          className={`fixed top-16 bottom-0 w-3 cursor-col-resize z-30 group transition-all ${
+            isResizing ? 'bg-primary/50' : 'hover:bg-primary/20'
+          }`}
+          style={{ left: `${(sidebarWidth ? sidebarWidth : (ICON_RAIL_WIDTH + drawerWidth)) - 10}px` }}
           onMouseDown={(e) => {
             e.preventDefault();
+            setIsResizing(true);
             const startX = e.clientX;
             const startWidth = sidebarWidth || (ICON_RAIL_WIDTH + drawerWidth);
 
             const handleMouseMove = (e: MouseEvent) => {
               const delta = e.clientX - startX;
-              const newWidth = Math.max(240, Math.min(600, startWidth + delta));
-              onSidebarWidthChange?.(newWidth);
+              const newWidth = startWidth + delta;
+              
+              // サイドバーを閉じるしきい値（Icon Rail幅 + 少し余裕）
+              const MINIMIZE_THRESHOLD = ICON_RAIL_WIDTH + 100;
+              
+              if (newWidth < MINIMIZE_THRESHOLD) {
+                // しきい値以下になったら最小化
+                handleMinimize();
+                setIsResizing(false);
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              } else {
+                // 通常のリサイズ（240px〜600pxの範囲）
+                const clampedWidth = Math.max(240, Math.min(600, newWidth));
+                onSidebarWidthChange?.(clampedWidth);
+              }
             };
 
             const handleMouseUp = () => {
+              setIsResizing(false);
               document.removeEventListener('mousemove', handleMouseMove);
               document.removeEventListener('mouseup', handleMouseUp);
             };
@@ -271,15 +324,20 @@ export function TwoLayerSidebar({
             document.addEventListener('mouseup', handleMouseUp);
           }}
         >
-          <div className="absolute inset-y-0 left-0 w-1 bg-border group-hover:bg-primary/30 transition-colors" />
+          {/* Visual indicator for resize handle */}
+          <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 transition-all ${
+            isResizing 
+              ? 'bg-primary shadow-lg shadow-primary/50' 
+              : 'bg-transparent group-hover:bg-primary/40'
+          }`} />
         </div>
       )}
 
       {/* Settings Popup */}
       {showSettingsPopup && (
         <SettingsPopup
-          onClose={() => setShowSettingsPopup(false)}
-          onViewChange={onViewChange}
+          onClose={handleSettingsClose}
+          onViewChange={handleViewChangeFromSettings}
           activeView={currentView}
         />
       )}

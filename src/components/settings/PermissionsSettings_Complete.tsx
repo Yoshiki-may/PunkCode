@@ -391,9 +391,6 @@ export function PermissionsSettings() {
             <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100]" onClick={() => {
               setShowCreateModal(false);
               setShowEditModal(false);
-              setEditingRole(null);
-              setRoleForm({ name: '', description: '', permissions: [] });
-              setFormErrors({});
             }} />
             <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl z-[101] p-6 max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg text-card-foreground mb-4">

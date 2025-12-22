@@ -304,8 +304,14 @@ export function ClientAssetLibrary() {
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-8">
-          <div className="bg-white rounded-2xl max-w-2xl w-full">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-8"
+          onClick={() => setShowUploadModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-2xl w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-8 border-b border-[#E5E7EB]">
               <div className="flex items-center justify-between">
                 <h2 className="text-[#1F2933]">素材をアップロード</h2>

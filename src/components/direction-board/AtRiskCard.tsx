@@ -1,9 +1,12 @@
 import { ChevronRight, AlertTriangle, Clock, PackageX, Timer } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { getAllApprovals, getAllTasks } from '../../utils/clientData';
 
 interface RiskItem {
   id: string;
   name: string;
   client: string;
+  clientId: string;
   relativeTime: string;
   riskType: 'delayed' | 'missing-material' | 'urgent';
   assignee: string;
@@ -15,40 +18,130 @@ interface AtRiskCardProps {
 }
 
 export function AtRiskCard({ onNavigate }: AtRiskCardProps) {
-  const risks: RiskItem[] = [
-    {
-      id: '1',
-      name: 'TikTok動画 - 商品PR',
-      client: 'AXAS株式会社',
-      relativeTime: 'あと4時間',
-      riskType: 'urgent',
-      assignee: '田中太郎',
-      initials: 'TT',
-    },
-    {
-      id: '2',
-      name: 'Instagram Reels - キャンペーン',
-      client: 'BAYMAX株式会社',
-      relativeTime: '遅延2日',
-      riskType: 'delayed',
-      assignee: '佐藤花子',
-      initials: 'SH',
-    },
-    {
-      id: '3',
-      name: 'YouTube Short - 解説動画',
-      client: 'デジタルフロンティア',
-      relativeTime: '素材待ち',
-      riskType: 'missing-material',
-      assignee: '鈴木一郎',
-      initials: 'SI',
-    },
-  ];
+  const [risks, setRisks] = useState<RiskItem[]>([]);
+  const [riskCounts, setRiskCounts] = useState({
+    delayed: 0,
+    missingMaterial: 0,
+    urgent: 0,
+  });
 
-  const riskCounts = {
-    delayed: 2,
-    missingMaterial: 3,
-    urgent: 4,
+  // LocalStorageからリスクを読み込み
+  useEffect(() => {
+    loadRisks();
+  }, []);
+
+  const loadRisks = () => {
+    const allApprovals = getAllApprovals();
+    const allTasks = getAllTasks();
+    
+    const riskItems: RiskItem[] = [];
+    let delayedCount = 0;
+    let missingMaterialCount = 0;
+    let urgentCount = 0;
+    
+    // 承認待ちから遅延・緊急をチェック
+    allApprovals.forEach(approval => {
+      const deadline = new Date(approval.deadline || approval.submittedDate);
+      const now = new Date();
+      const diff = deadline.getTime() - now.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      
+      let riskType: 'delayed' | 'urgent' | null = null;
+      let relativeTime = '';
+      
+      if (hours < 0) {
+        // 期限超過 = 遅延
+        const days = Math.abs(Math.floor(diff / (1000 * 60 * 60 * 24)));
+        riskType = 'delayed';
+        relativeTime = `遅延${days}日`;
+        delayedCount++;
+      } else if (hours < 24) {
+        // 24時間以内 = 緊急
+        riskType = 'urgent';
+        relativeTime = `あと${hours}時間`;
+        urgentCount++;
+      }
+      
+      if (riskType) {
+        riskItems.push({
+          id: approval.id,
+          name: approval.title,
+          client: approval.clientName,
+          clientId: approval.clientId,
+          relativeTime,
+          riskType,
+          assignee: approval.submittedBy,
+          initials: getInitials(approval.submittedBy)
+        });
+      }
+    });
+    
+    // タスクから遅延・緊急をチェック
+    allTasks.forEach(task => {
+      const deadline = new Date(task.postDate);
+      const now = new Date();
+      const diff = deadline.getTime() - now.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      
+      // 完了済みはスキップ
+      if (task.status === 'completed') return;
+      
+      let riskType: 'delayed' | 'urgent' | null = null;
+      let relativeTime = '';
+      
+      if (hours < 0) {
+        // 期限超過 = 遅延
+        const days = Math.abs(Math.floor(diff / (1000 * 60 * 60 * 24)));
+        riskType = 'delayed';
+        relativeTime = `遅延${days}日`;
+        delayedCount++;
+      } else if (hours < 24) {
+        // 24時間以内 = 緊急
+        riskType = 'urgent';
+        relativeTime = `あと${hours}時間`;
+        urgentCount++;
+      }
+      
+      if (riskType) {
+        riskItems.push({
+          id: task.id,
+          name: task.title,
+          client: task.clientName,
+          clientId: task.clientId,
+          relativeTime,
+          riskType,
+          assignee: task.assignee,
+          initials: task.initials
+        });
+      }
+    });
+    
+    // 素材未着の簡易判定（TODO: 実際のデータに応じて実装）
+    missingMaterialCount = 3; // 仮の値
+    
+    // 期限が近い順にソート
+    riskItems.sort((a, b) => {
+      // urgentを優先、次にdelayed
+      if (a.riskType === 'urgent' && b.riskType !== 'urgent') return -1;
+      if (a.riskType !== 'urgent' && b.riskType === 'urgent') return 1;
+      return 0;
+    });
+    
+    setRisks(riskItems.slice(0, 3)); // 最初の3件のみ表示
+    setRiskCounts({
+      delayed: delayedCount,
+      missingMaterial: missingMaterialCount,
+      urgent: urgentCount
+    });
+  };
+
+  // 名前からイニシャルを生成
+  const getInitials = (name: string): string => {
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return parts[0].charAt(0) + parts[1].charAt(0);
+    }
+    return name.substring(0, 2).toUpperCase();
   };
 
   const getRiskIcon = (type: string) => {

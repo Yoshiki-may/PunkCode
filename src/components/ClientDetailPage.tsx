@@ -23,6 +23,7 @@ import {
   ArrowDownRight
 } from 'lucide-react';
 import { useState } from 'react';
+import { getClientById } from '../utils/clientData';
 
 interface ClientDetailPageProps {
   clientId: string;
@@ -33,20 +34,39 @@ export function ClientDetailPage({ clientId, onGenerateAIUrl }: ClientDetailPage
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
 
-  // Mock client data
+  // 共通データから取得
+  const clientData = getClientById(clientId);
+  
+  // クライアントが見つからない場合
+  if (!clientData) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Building2 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h2 className="text-xl text-foreground mb-2">クライアントが見つかりません</h2>
+          <p className="text-sm text-muted-foreground">指定されたクライアントIDが存在しません</p>
+        </div>
+      </div>
+    );
+  }
+
+  // クライアントデータをページ用の形式に変換
   const client = {
-    id: clientId,
-    companyName: 'AXAS株式会社',
-    status: 'negotiating' as const,
-    priority: 'high' as const,
-    assignee: '田中太郎',
-    contactPerson: '山田太郎',
-    email: 'yamada@axas.co.jp',
-    phone: '03-1234-5678',
-    contractDate: '2024/12/20',
+    id: clientData.id,
+    companyName: clientData.name,
+    status: clientData.contractStatus === 'negotiating' ? 'negotiating' as const : 'contracted' as const,
+    priority: clientData.isPinned ? 'high' as const : 'medium' as const,
+    assignee: clientData.contactPerson,
+    contactPerson: clientData.contactPerson,
+    email: clientData.contactEmail,
+    phone: clientData.contactPhone,
+    contractDate: clientData.contractStart,
     lastUpdate: '2時間前',
     progress: 65,
     contractYears: '1年目',
+    industry: clientData.industry,
+    address: clientData.address,
+    description: clientData.description,
   };
 
   const handleGenerateAIUrl = () => {
@@ -85,76 +105,93 @@ export function ClientDetailPage({ clientId, onGenerateAIUrl }: ClientDetailPage
       id: '1', 
       title: '会社概要', 
       status: 'completed',
-      content: 'IT企業として、最新のテクノロジーソリューションを提供しています。'
+      content: clientData.description || `${clientData.industry}業界で活躍する企業です。`
     },
     { 
       id: '2', 
       title: 'ブランド/提供価値', 
       status: 'completed',
-      content: '革新的で信頼性の高いソリューションを通じて、顧客のビジネスを加速します。'
+      content: `${clientData.industry}における革新的なソリューションを提供しています。`
     },
     { 
       id: '3', 
       title: '事業課題', 
       status: 'completed',
-      content: '市場での認知度向上とリード獲得の最適化が必要です。'
+      content: 'SNSでの認知度向上とエンゲージメント強化が課題です。'
     },
     { 
       id: '4', 
       title: '主要目標/成功の定義', 
       status: 'completed',
-      content: '6ヶ月以内にフォロワー数20%増加、エンゲージメント率5%以上を達成します。'
+      content: `フォロワー数${clientData.kpi.followers.target.toLocaleString()}人達成、エンゲージメント率${clientData.kpi.engagement.target}%以上を目指します。`
     },
     { 
       id: '5', 
       title: 'ターゲット層', 
       status: 'completed',
-      content: '25-45歳のビジネスパーソン、テクノロジーに関心のある経営者層。'
+      content: `${clientData.industry}に関心のある20-40代をメインターゲットとしています。`
     },
     { 
       id: '6', 
       title: 'コンテンツの方向性', 
       status: 'completed',
-      content: '技術トレンド、業界インサイト、成功事例、製品デモを中心に展開します。'
+      content: `${clientData.platforms.join('、')}を活用し、月${clientData.monthlyPosts}投稿を展開します。`
     },
     { 
       id: '7', 
       title: '現在のアカウント', 
       status: 'completed',
-      content: '@axas_official - 現在フォロワー数15.2K'
+      content: `現在フォロワー数${clientData.followers.toLocaleString()}人`
     },
     { 
       id: '8', 
       title: '競合の認識', 
       status: 'completed',
-      content: '主要競合3社を分析済み。差別化ポイントを明確化しました。'
+      content: '主要競合を分析済み。差別化ポイントを明確化しました。'
     },
     { 
       id: '9', 
       title: '好みのトーン/スタイル', 
       status: 'completed',
-      content: 'プロフェッショナルでありながら親しみやすく、革新的な印象を重視。'
+      content: 'プロフェッショナルでありながら親しみやすい印象を重視。'
     },
     { 
       id: '10', 
       title: '使用したくないテーマ', 
       status: 'completed',
-      content: '過度なセールス色、技術的すぎる専門用語の多用を避けます。'
+      content: '過度なセールス色を避け、価値提供を重視します。'
     },
     { 
       id: '11', 
       title: '法規制/タブー', 
       status: 'completed',
-      content: '金融商品取引法、個人情報保護法に準拠したコンテンツ制作を徹底します。'
+      content: '関連法規制に準拠したコンテンツ制作を徹底します。'
     },
   ];
 
-  // Instagram リアルタイムデータ
+  // Instagram リアルタイムデータ（実際のクライアントデータを使用）
   const instagramMetrics = {
-    followers: { value: 125900, change: 4.2, trend: 'up' },
-    engagement: { value: 4.2, change: -0.3, trend: 'down', isPercentage: true },
-    posts: { value: 45600, change: 0, trend: 'neutral' },
-    reach: { value: 89200, change: 0, trend: 'neutral' },
+    followers: { 
+      value: clientData.followers, 
+      change: clientData.followerChange, 
+      trend: clientData.followerChange >= 0 ? 'up' as const : 'down' as const
+    },
+    engagement: { 
+      value: clientData.engagement, 
+      change: clientData.engagementChange, 
+      trend: clientData.engagementChange >= 0 ? 'up' as const : 'down' as const, 
+      isPercentage: true 
+    },
+    posts: { 
+      value: clientData.monthlyPosts, 
+      change: 0, 
+      trend: 'neutral' as const 
+    },
+    reach: { 
+      value: clientData.kpi.reach.current, 
+      change: clientData.kpi.reach.change, 
+      trend: clientData.kpi.reach.change >= 0 ? 'up' as const : 'down' as const
+    },
   };
 
   const recentPosts = [

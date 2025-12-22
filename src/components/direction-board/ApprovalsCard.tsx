@@ -1,10 +1,12 @@
 import { ChevronRight, RotateCcw, Clock } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAllApprovals } from '../../utils/clientData';
 
 interface Approval {
   id: string;
   name: string;
   client: string;
+  clientId: string;
   deadline: string;
   relativeTime: string;
   rejectedCount: number;
@@ -19,131 +21,72 @@ interface ApprovalsCardProps {
 export function ApprovalsCard({
   onNavigate
 }: ApprovalsCardProps) {
-  const mockApprovals: Approval[] = [
-    {
-      id: '1',
-      name: 'Instagram Reels - 新商品紹介',
-      client: 'AXAS株式会社',
-      deadline: '2024/12/14 18:00',
-      relativeTime: 'あと6時間',
-      rejectedCount: 2,
-      assignee: '田中太郎',
-      initials: 'TT',
-    },
-    {
-      id: '2',
-      name: 'YouTube動画 - ブランドストーリー',
-      client: 'BAYMAX株式会社',
-      deadline: '2024/12/15 12:00',
-      relativeTime: 'あと22時間',
-      rejectedCount: 0,
-      assignee: '佐藤花子',
-      initials: 'SH',
-    },
-    {
-      id: '3',
-      name: 'Facebook広告 - キャンペーン',
-      client: 'COSMO株式会社',
-      deadline: '2024/12/16 15:00',
-      relativeTime: 'あと30時間',
-      rejectedCount: 1,
-      assignee: '山田次郎',
-      initials: 'SY',
-    },
-    {
-      id: '4',
-      name: 'Twitter広告 - キャンペーン',
-      client: 'DREAM株式会社',
-      deadline: '2024/12/17 10:00',
-      relativeTime: 'あと38時間',
-      rejectedCount: 0,
-      assignee: '伊藤美咲',
-      initials: 'IM',
-    },
-    {
-      id: '5',
-      name: 'LinkedIn広告 - キャンペーン',
-      client: 'EARTH株式会社',
-      deadline: '2024/12/18 14:00',
-      relativeTime: 'あと46時間',
-      rejectedCount: 0,
-      assignee: '佐藤健太',
-      initials: 'SK',
-    },
-    {
-      id: '6',
-      name: 'Instagram広告 - キャンペーン',
-      client: 'FIRE株式会社',
-      deadline: '2024/12/19 09:00',
-      relativeTime: 'あと54時間',
-      rejectedCount: 0,
-      assignee: '田中智子',
-      initials: 'TZ',
-    },
-    {
-      id: '7',
-      name: 'YouTube広告 - キャンペーン',
-      client: 'GOLD株式会社',
-      deadline: '2024/12/20 13:00',
-      relativeTime: 'あと62時間',
-      rejectedCount: 0,
-      assignee: '佐藤花子',
-      initials: 'SH',
-    },
-    {
-      id: '8',
-      name: 'Facebook広告 - キャンペーン',
-      client: 'HEART株式会社',
-      deadline: '2024/12/21 08:00',
-      relativeTime: 'あと70時間',
-      rejectedCount: 0,
-      assignee: '山田次郎',
-      initials: 'SY',
-    },
-    {
-      id: '9',
-      name: 'Twitter広告 - キャンペーン',
-      client: 'ICE株式会社',
-      deadline: '2024/12/22 12:00',
-      relativeTime: 'あと78時間',
-      rejectedCount: 0,
-      assignee: '伊藤美咲',
-      initials: 'IM',
-    },
-    {
-      id: '10',
-      name: 'LinkedIn広告 - キャンペーン',
-      client: 'JADE株式会社',
-      deadline: '2024/12/23 11:00',
-      relativeTime: 'あと86時間',
-      rejectedCount: 0,
-      assignee: '佐藤健太',
-      initials: 'SK',
-    },
-    {
-      id: '11',
-      name: 'Instagram広告 - キャンペーン',
-      client: 'KING株式会社',
-      deadline: '2024/12/24 10:00',
-      relativeTime: 'あと94時間',
-      rejectedCount: 0,
-      assignee: '田中智子',
-      initials: 'TZ',
-    },
-    {
-      id: '12',
-      name: 'YouTube広告 - キャンペーン',
-      client: 'LION株式会社',
-      deadline: '2024/12/25 09:00',
-      relativeTime: 'あと102時間',
-      rejectedCount: 0,
-      assignee: '佐藤花子',
-      initials: 'SH',
-    },
-  ];
+  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const [approvals, setApprovals] = useState(mockApprovals.slice(0, 2));
-  const totalCount = 12;
+  // LocalStorageから承認待ちを読み込み
+  useEffect(() => {
+    loadApprovals();
+  }, []);
+
+  const loadApprovals = () => {
+    const allApprovals = getAllApprovals();
+    
+    // ClientApprovalをApproval形式に変換
+    const formattedApprovals: Approval[] = allApprovals.map(approval => {
+      // 期限から相対時間を計算
+      const relativeTime = getRelativeTime(approval.deadline || approval.submittedDate);
+      
+      // 差し戻し回数を計算（rejected回数をカウント）
+      const rejectedCount = 0; // TODO: 承認履歴から計算
+      
+      return {
+        id: approval.id,
+        name: approval.title,
+        client: approval.clientName,
+        clientId: approval.clientId,
+        deadline: approval.deadline || approval.submittedDate,
+        relativeTime,
+        rejectedCount,
+        assignee: approval.submittedBy,
+        initials: getInitials(approval.submittedBy)
+      };
+    });
+    
+    // 期限が近い順にソート
+    formattedApprovals.sort((a, b) => {
+      const dateA = new Date(a.deadline).getTime();
+      const dateB = new Date(b.deadline).getTime();
+      return dateA - dateB;
+    });
+    
+    setTotalCount(formattedApprovals.length);
+    setApprovals(formattedApprovals.slice(0, 2)); // 最初の2件のみ表示
+  };
+
+  // 期限から相対時間を計算
+  const getRelativeTime = (deadline: string): string => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const diff = deadlineDate.getTime() - now.getTime();
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (hours < 0) return '期限超過';
+    if (hours < 24) return `あと${hours}時間`;
+    if (days === 1) return '明日';
+    return `${days}日後`;
+  };
+
+  // 名前からイニシャルを生成
+  const getInitials = (name: string): string => {
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return parts[0].charAt(0) + parts[1].charAt(0);
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
 
   return (
     <div className="bg-card rounded-2xl border border-border p-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow cursor-pointer group"

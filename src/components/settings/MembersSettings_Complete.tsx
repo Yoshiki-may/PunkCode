@@ -489,7 +489,10 @@ export function MembersSettings() {
         {showInviteModal && (
           <>
             <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[100]" onClick={() => setShowInviteModal(false)} />
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card border border-border rounded-xl shadow-2xl z-[101] p-6">
+            <div 
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card border border-border rounded-xl shadow-2xl z-[101] p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="text-lg text-card-foreground mb-4">メンバーを招待</h3>
               <div className="space-y-4">
                 <div>

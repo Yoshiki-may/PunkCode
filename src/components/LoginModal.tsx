@@ -102,8 +102,14 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200 p-4">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md animate-in slide-in-from-bottom-4 duration-300 overflow-hidden">
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md animate-in slide-in-from-bottom-4 duration-300 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="relative p-8 pb-6 border-b border-border">
           {/* Background Decoration */}

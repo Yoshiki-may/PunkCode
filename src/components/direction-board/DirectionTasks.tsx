@@ -1,10 +1,13 @@
 import { Circle, CheckCircle2, ChevronRight, Clock, User, Plus, Filter, Search, Calendar } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAllTasks, updateClientTask, addClientTask, getAllClients } from '../../utils/clientData';
+import { AddTaskModal } from '../AddTaskModal';
 
 interface Task {
   id: string;
   name: string;
   client: string;
+  clientId: string;
   deadline: string;
   relativeTime: string;
   status: 'pending' | 'in-progress' | 'completed';
@@ -12,115 +15,108 @@ interface Task {
   initials: string;
   priority: 'high' | 'medium' | 'low';
   category: string;
+  platform?: string;
 }
 
 export function DirectionTasks() {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      name: '株式会社AXAS 台本最終確認',
-      client: 'AXAS株式会社',
-      deadline: '2024/12/14 14:00',
-      relativeTime: 'あと2時間',
-      status: 'pending',
-      assignee: '田中太郎',
-      initials: 'TT',
-      priority: 'high',
-      category: '承認',
-    },
-    {
-      id: '2',
-      name: 'BAYMAX社初稿承認依頼',
-      client: 'BAYMAX株式会社',
-      deadline: '2024/12/14 16:00',
-      relativeTime: 'あと4時間',
-      status: 'pending',
-      assignee: '佐藤花子',
-      initials: 'SH',
-      priority: 'high',
-      category: '承認',
-    },
-    {
-      id: '3',
-      name: 'デジタルフロンティア社投稿スケジュール調整',
-      client: 'デジタルフロンティア株式会社',
-      deadline: '2024/12/14 18:00',
-      relativeTime: 'あと6時間',
-      status: 'in-progress',
-      assignee: '鈴木一郎',
-      initials: 'SI',
-      priority: 'medium',
-      category: 'スケジュール',
-    },
-    {
-      id: '4',
-      name: 'クリエイティブワークス 企画提案資料作成',
-      client: 'クリエイティブワークス株式会社',
-      deadline: '2024/12/15 10:00',
-      relativeTime: '明日',
-      status: 'pending',
-      assignee: '田中太郎',
-      initials: 'TT',
-      priority: 'medium',
-      category: '企画',
-    },
-    {
-      id: '5',
-      name: 'マーケティングラボ 月次レポート作成',
-      client: 'マーケティングラボ株式会社',
-      deadline: '2024/12/15 15:00',
-      relativeTime: '明日',
-      status: 'pending',
-      assignee: '佐藤花子',
-      initials: 'SH',
-      priority: 'low',
-      category: 'レポート',
-    },
-    {
-      id: '6',
-      name: 'AXAS株式会社 撮影スケジュール確認',
-      client: 'AXAS株式会社',
-      deadline: '2024/12/15 17:00',
-      relativeTime: '明日',
-      status: 'completed',
-      assignee: '鈴木一郎',
-      initials: 'SI',
-      priority: 'medium',
-      category: 'スケジュール',
-    },
-    {
-      id: '7',
-      name: 'BAYMAX株式会社 コンテンツ企画MTG',
-      client: 'BAYMAX株式会社',
-      deadline: '2024/12/16 11:00',
-      relativeTime: '2日後',
-      status: 'pending',
-      assignee: '田中太郎',
-      initials: 'TT',
-      priority: 'medium',
-      category: 'ミーティング',
-    },
-    {
-      id: '8',
-      name: 'デジタルフロンティア 動画編集フィードバック',
-      client: 'デジタルフロンティア株式会社',
-      deadline: '2024/12/16 16:00',
-      relativeTime: '2日後',
-      status: 'in-progress',
-      assignee: '佐藤花子',
-      initials: 'SH',
-      priority: 'high',
-      category: 'フィードバック',
-    },
-  ]);
-
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'in-progress' | 'completed'>('all');
   const [filterPriority, setFilterPriority] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // LocalStorageからタスクを読み込み
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  const loadTasks = () => {
+    const allTasks = getAllTasks();
+    
+    // ClientTaskをTask形式に変換
+    const formattedTasks: Task[] = allTasks.map(task => {
+      // 期限から相対時間を計算
+      const relativeTime = getRelativeTime(task.postDate);
+      
+      // ステータスをマッピング
+      let status: 'pending' | 'in-progress' | 'completed' = 'pending';
+      if (task.status === 'in-progress') status = 'in-progress';
+      if (task.status === 'completed') status = 'completed';
+      
+      // 優先度を判定（期限が近いほど高優先度）
+      const priority = getPriorityFromDeadline(task.postDate);
+      
+      // カテゴリーをステータスから判定
+      const category = getCategoryFromStatus(task.status);
+      
+      return {
+        id: task.id,
+        name: task.title,
+        client: task.clientName,
+        clientId: task.clientId,
+        deadline: task.postDate,
+        relativeTime,
+        status,
+        assignee: task.assignee,
+        initials: task.initials,
+        priority,
+        category,
+        platform: task.platform
+      };
+    });
+    
+    setTasks(formattedTasks);
+  };
+
+  // 期限から相対時間を計算
+  const getRelativeTime = (deadline: string): string => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const diff = deadlineDate.getTime() - now.getTime();
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (hours < 0) return '期限超過';
+    if (hours < 24) return `あと${hours}時間`;
+    if (days === 1) return '明日';
+    return `${days}日後`;
+  };
+
+  // 期限から優先度を判定
+  const getPriorityFromDeadline = (deadline: string): 'high' | 'medium' | 'low' => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const diff = deadlineDate.getTime() - now.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    
+    if (hours < 24) return 'high';
+    if (hours < 72) return 'medium';
+    return 'low';
+  };
+
+  // ステータスからカテゴリーを判定
+  const getCategoryFromStatus = (status: string): string => {
+    if (status === 'approval' || status === 'rejected') return '承認';
+    if (status === 'in-progress') return '制作中';
+    if (status === 'completed') return '完了';
+    return 'スケジュール';
+  };
 
   const toggleComplete = (id: string) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, status: task.status === 'completed' ? 'pending' : 'completed' } : task
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+    
+    // LocalStorageを更新
+    updateClientTask(task.clientId, id, { 
+      status: newStatus === 'completed' ? 'completed' : 'pending'
+    });
+    
+    // ローカルステートを更新
+    setTasks(tasks.map(t => 
+      t.id === id ? { ...t, status: newStatus } : t
     ));
   };
 
@@ -191,7 +187,10 @@ export function DirectionTasks() {
           <h1 className="text-2xl text-card-foreground mb-1">Tasks</h1>
           <p className="text-sm text-muted-foreground">すべてのタスクを管理</p>
         </div>
-        <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2">
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+        >
           <Plus className="w-4 h-4" strokeWidth={2} />
           <span>新規タスク</span>
         </button>
@@ -402,6 +401,15 @@ export function DirectionTasks() {
           <p className="text-muted-foreground">該当するタスクが見つかりませんでした</p>
         </div>
       )}
+      
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onTaskAdded={() => {
+          loadTasks(); // タスクを再読み込み
+        }}
+      />
     </div>
   );
 }
