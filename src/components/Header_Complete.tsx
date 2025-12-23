@@ -207,7 +207,7 @@ export function Header({ currentBoard, onBoardChange, theme = 'dark', onSettings
             PALSS SYSTEM
           </h1>
           {/* Dev Mode Indicator */}
-          {currentUser && (
+          {currentUser && currentUser.role && (
             <span className="ml-3 px-2 py-1 text-xs rounded-md bg-amber-100 text-amber-700 border border-amber-200">
               開発モード: {currentUser.name} ({currentUser.role.toUpperCase()})
             </span>

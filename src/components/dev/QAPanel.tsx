@@ -1,7 +1,7 @@
 // DEV専用QAパネル
 // 既存UIに一切影響を与えず、開発・検証を加速するためのパネル
 
-import { X, RefreshCw, Trash2, Settings, Database, Users, AlertCircle } from 'lucide-react';
+import { X, RefreshCw, Trash2, Settings, Database, Users, AlertCircle, Navigation, Search, MapPin, GitCompare, Lock, Activity } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getQAConfig, setQAConfig } from '../../utils/qaConfig';
 import { getAllTasks, getAllApprovals, getAllNotifications, getAllClients } from '../../utils/clientData';
@@ -11,17 +11,31 @@ import { storage, STORAGE_KEYS } from '../../utils/storage';
 import { generateStagnantTask, generateOverdueTask, generateNormalTask, generateNoReplyComment, generateTeamReply, generateUpcomingRenewalContract, generateDistantRenewalContract, generateOnTimeCompletedTask, generateOverdueCompletedTask, generateIncompleteTask, generateCurrentMonthActiveContract, generatePreviousMonthActiveContract, generateCurrentMonthNegotiatingContract } from '../../utils/testDataGenerator';
 import { getAllComments, seedCommentsIfEmpty, clearAllComments } from '../../utils/commentData';
 import { getAllContracts, seedContractsIfEmpty, clearAllContracts } from '../../utils/contractData';
+import { SCREEN_MAP, BOARD_LABELS, CATEGORY_LABELS, searchScreens, getAllBoards, getAllCategories } from '../../utils/screenMap';
+import { SyncTab } from './SyncTab';
+import { AuthTab } from './AuthTab';
+import { OutboxTab } from './OutboxTab';
+import { PerformanceTab } from './PerformanceTab';
+import { IncrementalTab } from './IncrementalTab';
 
 interface QAPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  currentBoard?: string;
+  currentView?: string;
+  onNavigate?: (board: string, view: string) => void;
 }
 
-export function QAPanel({ isOpen, onClose }: QAPanelProps) {
-  const [activeTab, setActiveTab] = useState<'settings' | 'data' | 'test'>('settings');
+export function QAPanel({ isOpen, onClose, currentBoard, currentView, onNavigate }: QAPanelProps) {
+  const [activeTab, setActiveTab] = useState<'settings' | 'data' | 'test' | 'navigator' | 'sync' | 'auth' | 'outbox' | 'performance' | 'incremental'>('settings');
   const [qaConfig, setQAConfigState] = useState(getQAConfig());
   const [currentUserState, setCurrentUserState] = useState(getCurrentUser());
   const [appState, setAppStateState] = useState(getAppState());
+  
+  // Navigator tab state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedBoard, setSelectedBoard] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
   // データ件数
   const [taskCount, setTaskCount] = useState(0);
@@ -62,7 +76,7 @@ export function QAPanel({ isOpen, onClose }: QAPanelProps) {
     const users = getAllUsers();
     const user = users.find(u => u.id === userId);
     if (user) {
-      setCurrentUser(user.id);
+      setCurrentUser(user);  // 🔧 修正：Userオブジェクト全体を渡す（user.idではなくuser）
       setCurrentUserState(user);
       alert(`ログインユーザーを「${user.name} (${user.role})」に切り替えました`);
       // ページをリロードして反映
@@ -253,7 +267,13 @@ export function QAPanel({ isOpen, onClose }: QAPanelProps) {
           {[
             { id: 'settings', label: '設定', icon: Settings },
             { id: 'data', label: 'データ状況', icon: Database },
-            { id: 'test', label: 'テストデータ', icon: AlertCircle }
+            { id: 'test', label: 'テストデータ', icon: AlertCircle },
+            { id: 'navigator', label: 'ナビゲーション', icon: Navigation },
+            { id: 'sync', label: '同期', icon: GitCompare },
+            { id: 'auth', label: '認証', icon: Lock },
+            { id: 'outbox', label: 'Outbox', icon: RefreshCw },
+            { id: 'performance', label: 'パフォーマンス', icon: Activity },
+            { id: 'incremental', label: 'インクリメンタル', icon: RefreshCw }
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -618,6 +638,234 @@ export function QAPanel({ isOpen, onClose }: QAPanelProps) {
                 </div>
               </div>
             </div>
+          )}
+          
+          {/* Navigator Tab */}
+          {activeTab === 'navigator' && (() => {
+            // Filter screens
+            let filteredScreens = SCREEN_MAP;
+            
+            // Filter by search query
+            if (searchQuery.trim()) {
+              filteredScreens = searchScreens(searchQuery);
+            }
+            
+            // Filter by board
+            if (selectedBoard !== 'all') {
+              filteredScreens = filteredScreens.filter(s => s.board === selectedBoard);
+            }
+            
+            // Filter by category
+            if (selectedCategory !== 'all') {
+              filteredScreens = filteredScreens.filter(s => s.category === selectedCategory);
+            }
+            
+            return (
+              <div className="space-y-6">
+                {/* Current Location */}
+                <div className="bg-primary/10 rounded-xl p-4 border-2 border-primary/20">
+                  <h3 className="text-sm text-card-foreground mb-3 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    現在位置
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Board:</span>
+                      <span className="text-sm font-medium text-card-foreground">
+                        {BOARD_LABELS[currentBoard || ''] || currentBoard || '未選択'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">View:</span>
+                      <span className="text-sm font-medium text-card-foreground">
+                        {currentView || '未選択'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Search & Filters */}
+                <div className="bg-accent/30 rounded-xl p-4">
+                  <h3 className="text-sm text-card-foreground mb-3 flex items-center gap-2">
+                    <Search className="w-4 h-4" />
+                    画面検索（{filteredScreens.length}/{SCREEN_MAP.length}件）
+                  </h3>
+                  
+                  {/* Search Input */}
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="画面名、View ID、説明で検索..."
+                    className="w-full px-4 py-2 border border-border rounded-lg bg-background text-card-foreground focus:outline-none focus:ring-2 focus:ring-primary mb-3"
+                  />
+                  
+                  {/* Filter by Board */}
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Board</label>
+                      <select
+                        value={selectedBoard}
+                        onChange={(e) => setSelectedBoard(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-background text-card-foreground text-sm"
+                      >
+                        <option value="all">すべてのBoard</option>
+                        {getAllBoards().map(board => (
+                          <option key={board} value={board}>
+                            {BOARD_LABELS[board] || board}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1">Category</label>
+                      <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-background text-card-foreground text-sm"
+                      >
+                        <option value="all">すべてのCategory</option>
+                        {getAllCategories().map(category => (
+                          <option key={category} value={category}>
+                            {CATEGORY_LABELS[category] || category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Clear Filters */}
+                  {(searchQuery || selectedBoard !== 'all' || selectedCategory !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedBoard('all');
+                        setSelectedCategory('all');
+                      }}
+                      className="text-xs text-muted-foreground hover:text-card-foreground transition-colors"
+                    >
+                      フィルタをクリア
+                    </button>
+                  )}
+                </div>
+                
+                {/* Screen List */}
+                <div className="bg-accent/30 rounded-xl p-4">
+                  <h3 className="text-sm text-card-foreground mb-3 flex items-center gap-2">
+                    <Navigation className="w-4 h-4" />
+                    画面一覧
+                  </h3>
+                  
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                    {filteredScreens.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        該当する画面が見つかりませんでした
+                      </p>
+                    ) : (
+                      filteredScreens.map((screen) => {
+                        const isCurrentScreen = screen.board === currentBoard && screen.viewId === currentView;
+                        return (
+                          <button
+                            key={screen.id}
+                            onClick={() => {
+                              if (onNavigate) {
+                                onNavigate(screen.board, screen.viewId);
+                                onClose();
+                              }
+                            }}
+                            className={`w-full px-4 py-3 rounded-lg text-left transition-all border ${
+                              isCurrentScreen
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                : 'bg-card text-card-foreground border-border hover:bg-accent hover:border-accent-foreground/20'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="font-medium text-sm">{screen.name}</div>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-0.5 rounded ${
+                                  isCurrentScreen
+                                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                                    : 'bg-accent text-muted-foreground'
+                                }`}>
+                                  {BOARD_LABELS[screen.board] || screen.board}
+                                </span>
+                                {isCurrentScreen && (
+                                  <span className="text-xs bg-primary-foreground/20 text-primary-foreground px-2 py-0.5 rounded">
+                                    現在地
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-xs opacity-70">
+                              {screen.description || screen.viewId}
+                            </div>
+                            {screen.category && (
+                              <div className="text-xs opacity-60 mt-1">
+                                {CATEGORY_LABELS[screen.category] || screen.category}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+                
+                {/* Quick Navigation */}
+                <div className="bg-accent/30 rounded-xl p-4">
+                  <h3 className="text-sm text-card-foreground mb-3">クイックナビゲーション</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { board: 'sales', view: 'home', label: 'Sales Home' },
+                      { board: 'direction', view: 'direction-dashboard', label: 'Direction Dashboard' },
+                      { board: 'editor', view: 'editor-home', label: 'Editor Home' },
+                      { board: 'creator', view: 'creator-home', label: 'Creator Home' },
+                      { board: 'support', view: 'management-home', label: 'Control Dashboard' },
+                      { board: 'client', view: 'client-home', label: 'Client Home' },
+                    ].map((item) => (
+                      <button
+                        key={`${item.board}-${item.view}`}
+                        onClick={() => {
+                          if (onNavigate) {
+                            onNavigate(item.board, item.view);
+                            onClose();
+                          }
+                        }}
+                        className="px-4 py-2 rounded-lg text-sm border border-border bg-card text-card-foreground hover:bg-accent transition-colors"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+          
+          {/* Sync Tab */}
+          {activeTab === 'sync' && (
+            <SyncTab />
+          )}
+          
+          {/* Auth Tab */}
+          {activeTab === 'auth' && (
+            <AuthTab />
+          )}
+          
+          {/* Outbox Tab */}
+          {activeTab === 'outbox' && (
+            <OutboxTab />
+          )}
+          
+          {/* Performance Tab */}
+          {activeTab === 'performance' && (
+            <PerformanceTab />
+          )}
+          
+          {/* Incremental Tab */}
+          {activeTab === 'incremental' && (
+            <IncrementalTab />
           )}
         </div>
         

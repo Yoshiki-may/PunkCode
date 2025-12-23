@@ -1,260 +1,164 @@
 import { useState } from 'react';
-import { 
-  Plus, 
-  X, 
-  Building2, 
-  Users, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Instagram,
-  AlertCircle
-} from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 
 interface AddClientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddClient: (client: NewClientData) => void;
+  onSave: (client: {
+    name: string;
+    industry?: string;
+    mainContactName?: string;
+    mainContactEmail?: string;
+  }) => void;
 }
 
-export interface NewClientData {
-  name: string;
-  instagramHandle: string;
-  industry: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
-  location: string;
-  contractStatus: 'active' | 'pending' | 'paused';
-  monthlyFee: number;
-}
-
-export function AddClientModal({ isOpen, onClose, onAddClient }: AddClientModalProps) {
-  const [newClient, setNewClient] = useState<NewClientData>({
-    name: '',
-    instagramHandle: '',
-    industry: '',
-    contactPerson: '',
-    email: '',
-    phone: '',
-    location: '',
-    contractStatus: 'pending',
-    monthlyFee: 0,
-  });
-
-  const handleSubmit = () => {
-    if (!newClient.name || !newClient.contactPerson || !newClient.email) {
-      return; // Validation
-    }
-
-    onAddClient(newClient);
-
-    // Reset form
-    setNewClient({
-      name: '',
-      instagramHandle: '',
-      industry: '',
-      contactPerson: '',
-      email: '',
-      phone: '',
-      location: '',
-      contractStatus: 'pending',
-      monthlyFee: 0,
-    });
-  };
+export function AddClientModal({ isOpen, onClose, onSave }: AddClientModalProps) {
+  const [name, setName] = useState('');
+  const [industry, setIndustry] = useState('');
+  const [mainContactName, setMainContactName] = useState('');
+  const [mainContactEmail, setMainContactEmail] = useState('');
+  const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // バリデーション
+    if (!name.trim()) {
+      setError('クライアント名は必須です');
+      return;
+    }
+
+    // 保存
+    onSave({
+      name: name.trim(),
+      industry: industry.trim() || undefined,
+      mainContactName: mainContactName.trim() || undefined,
+      mainContactEmail: mainContactEmail.trim() || undefined
+    });
+
+    // リセット
+    setName('');
+    setIndustry('');
+    setMainContactName('');
+    setMainContactEmail('');
+    setError('');
+    onClose();
+  };
+
+  const handleCancel = () => {
+    setName('');
+    setIndustry('');
+    setMainContactName('');
+    setMainContactEmail('');
+    setError('');
+    onClose();
+  };
+
   return (
-    <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200 p-4"
-      onClick={onClose}
-    >
-      <div 
-        className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-card z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Plus className="w-5 h-5 text-primary" />
-            </div>
-            <h3 className="text-lg">新規クライアント追加</h3>
-          </div>
-          <button 
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors" 
-            onClick={onClose}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-lg">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl text-foreground">新規クライアント追加</h2>
+          <button
+            onClick={handleCancel}
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
-            <X className="w-4 h-4 text-muted-foreground" />
+            <X className="size-5" />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-6 space-y-5">
-          {/* Company Name */}
+        {/* フォーム */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* エラー表示 */}
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
+              <AlertCircle className="size-4 text-destructive" />
+              <span className="text-sm text-destructive">{error}</span>
+            </div>
+          )}
+
+          {/* クライアント名（必須） */}
           <div>
-            <label className="block text-sm mb-2">
-              クライアント名
-              <span className="text-destructive ml-1">*</span>
+            <label htmlFor="name" className="block text-sm text-foreground mb-1">
+              クライアント名 <span className="text-destructive">*</span>
             </label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={newClient.name}
-                onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
-                placeholder="株式会社サンプル"
-                className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              />
-            </div>
+            <input
+              type="text"
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="例: 株式会社サンプル"
+              required
+            />
           </div>
 
-          {/* Two Column Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Instagram Handle */}
-            <div>
-              <label className="block text-sm mb-2">Instagramアカウント</label>
-              <div className="relative">
-                <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={newClient.instagramHandle}
-                  onChange={(e) => setNewClient({ ...newClient, instagramHandle: e.target.value })}
-                  placeholder="@username"
-                  className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Industry */}
-            <div>
-              <label className="block text-sm mb-2">業種</label>
-              <input
-                type="text"
-                value={newClient.industry}
-                onChange={(e) => setNewClient({ ...newClient, industry: e.target.value })}
-                placeholder="Beauty & Cosmetics"
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              />
-            </div>
-          </div>
-
-          {/* Contact Person */}
+          {/* 業種（任意） */}
           <div>
-            <label className="block text-sm mb-2">
+            <label htmlFor="industry" className="block text-sm text-foreground mb-1">
+              業種
+            </label>
+            <input
+              type="text"
+              id="industry"
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="例: 美容・コスメ"
+            />
+          </div>
+
+          {/* 担当者名（任意） */}
+          <div>
+            <label htmlFor="mainContactName" className="block text-sm text-foreground mb-1">
               担当者名
-              <span className="text-destructive ml-1">*</span>
             </label>
-            <div className="relative">
-              <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={newClient.contactPerson}
-                onChange={(e) => setNewClient({ ...newClient, contactPerson: e.target.value })}
-                placeholder="山田 太郎"
-                className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              />
-            </div>
+            <input
+              type="text"
+              id="mainContactName"
+              value={mainContactName}
+              onChange={(e) => setMainContactName(e.target.value)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="例: 田中 太郎"
+            />
           </div>
 
-          {/* Two Column Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Email */}
-            <div>
-              <label className="block text-sm mb-2">
-                メールアドレス
-                <span className="text-destructive ml-1">*</span>
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="email"
-                  value={newClient.email}
-                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-                  placeholder="example@company.com"
-                  className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="block text-sm mb-2">電話番号</label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="tel"
-                  value={newClient.phone}
-                  onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-                  placeholder="03-1234-5678"
-                  className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Location */}
+          {/* メールアドレス（任意） */}
           <div>
-            <label className="block text-sm mb-2">所在地</label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={newClient.location}
-                onChange={(e) => setNewClient({ ...newClient, location: e.target.value })}
-                placeholder="東京都渋谷区"
-                className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              />
-            </div>
+            <label htmlFor="mainContactEmail" className="block text-sm text-foreground mb-1">
+              メールアドレス
+            </label>
+            <input
+              type="email"
+              id="mainContactEmail"
+              value={mainContactEmail}
+              onChange={(e) => setMainContactEmail(e.target.value)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+              placeholder="例: tanaka@example.com"
+            />
           </div>
 
-          {/* Two Column Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Contract Status */}
-            <div>
-              <label className="block text-sm mb-2">契約ステータス</label>
-              <select
-                value={newClient.contractStatus}
-                onChange={(e) => setNewClient({ ...newClient, contractStatus: e.target.value as 'active' | 'pending' | 'paused' })}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              >
-                <option value="pending">保留中</option>
-                <option value="active">契約中</option>
-                <option value="paused">一時停止</option>
-              </select>
-            </div>
-
-            {/* Monthly Fee */}
-            <div>
-              <label className="block text-sm mb-2">月額契約金額</label>
-              <input
-                type="number"
-                value={newClient.monthlyFee || ''}
-                onChange={(e) => setNewClient({ ...newClient, monthlyFee: parseInt(e.target.value) || 0 })}
-                placeholder="280000"
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              />
-            </div>
+          {/* ボタン */}
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="flex-1 px-4 py-2 bg-muted/50 text-foreground rounded-lg hover:bg-muted transition-colors"
+            >
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              追加
+            </button>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-border sticky bottom-0 bg-card z-10">
-          <button
-            className="px-4 py-2.5 rounded-lg text-foreground hover:bg-muted transition-all"
-            onClick={onClose}
-          >
-            キャンセル
-          </button>
-          <button
-            className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20"
-            onClick={handleSubmit}
-            disabled={!newClient.name || !newClient.contactPerson || !newClient.email}
-          >
-            追加
-          </button>
-        </div>
+        </form>
       </div>
     </div>
   );

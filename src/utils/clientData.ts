@@ -1,9 +1,15 @@
 // 共通クライアントデータ管理
 // DirectionBoard、SalesBoardなど全てのボードで使用される一元管理されたクライアントデータ
+// Phase 9.3: Repository経由でデータを取得（mock/supabase自動切替） + outbox統合
 
 import { storage, STORAGE_KEYS } from './storage';
 import { getAllClients as getDBClients, Client as DBClient } from './mockDatabase';
 import { normalizeTask, normalizeApproval, touchTask, touchApproval, normalizeTasks, normalizeApprovals } from './dataMigration';
+// Phase 9.3: Repository経由でデータ取得
+import { getTaskRepository, getApprovalRepository, getNotificationRepository, getClientRepository } from '../repositories';
+import { getCurrentAuthUser } from './auth';
+import { getCurrentDataMode } from './supabase';
+import { addOutboxItem, updateOutboxItem } from './outbox';
 
 export interface ClientBasicInfo {
   id: string;
@@ -796,36 +802,195 @@ export const updateClientKPI = (clientId: string, kpi: Partial<ClientKPI>): bool
   return storage.set(STORAGE_KEYS.CLIENT_KPI, allKPIs);
 };
 
-// クライアントのタスクを追加（Phase 4: 自動で createdAt/updatedAt/lastActivityAt を設定）
+// クライアントのタスクを追加（Phase 9.3: Repository経由 + outbox統合）
 export const addClientTask = (clientId: string, task: ClientTask): boolean => {
-  const allTasks = storage.get<Record<string, ClientTask[]>>(STORAGE_KEYS.CLIENT_TASKS) || {};
-  const clientTasks = allTasks[clientId] || [];
-  
-  // 新規タスクには createdAt/updatedAt/lastActivityAt を自動設定
-  const now = new Date().toISOString();
-  const normalizedTask: ClientTask = {
-    ...task,
-    createdAt: task.createdAt || now,
-    updatedAt: task.updatedAt || now,
-    lastActivityAt: task.lastActivityAt || now
-  };
-  
-  allTasks[clientId] = [...clientTasks, normalizedTask];
-  return storage.set(STORAGE_KEYS.CLIENT_TASKS, allTasks);
+  try {
+    const mode = getCurrentDataMode();
+    const repo = getTaskRepository();
+    const authUser = getCurrentAuthUser();
+    
+    // 新規タスクには createdAt/updatedAt/lastActivityAt を自動設定
+    const now = new Date().toISOString();
+    const normalizedTask: ClientTask = {
+      ...task,
+      createdAt: task.createdAt || now,
+      updatedAt: task.updatedAt || now,
+      lastActivityAt: task.lastActivityAt || now
+    };
+    
+    // supabaseモードのみoutbox追加
+    let outboxId: string | undefined;
+    if (mode === 'supabase') {
+      outboxId = addOutboxItem('task.create', {
+        ...normalizedTask,
+        clientId,
+        org_id: authUser?.org_id,
+        client_id: clientId,
+        user_id: authUser?.id
+      });
+    }
+    
+    // Repository経由で作成（非同期だが、fire-and-forgetで互換性維持）
+    repo.createTask({
+      ...normalizedTask,
+      clientId,
+      org_id: authUser?.org_id,
+      client_id: clientId,
+      user_id: authUser?.id
+    } as any)
+      .then(created => {
+        console.log('[clientData] Task created via repository:', created.id);
+        
+        // outbox成功マーク
+        if (outboxId) {
+          updateOutboxItem(outboxId, {
+            status: 'sent',
+            lastAttemptAt: new Date().toISOString()
+          });
+        }
+        
+        // LocalStorageにも反映（mock mode互換性のため）
+        const allTasks = storage.get<Record<string, ClientTask[]>>(STORAGE_KEYS.CLIENT_TASKS) || {};
+        const clientTasks = allTasks[clientId] || [];
+        
+        // 重複チェック
+        const exists = clientTasks.some(t => t.id === created.id);
+        if (!exists) {
+          allTasks[clientId] = [...clientTasks, { ...created, ...normalizedTask }];
+          storage.set(STORAGE_KEYS.CLIENT_TASKS, allTasks);
+        }
+      })
+      .catch(error => {
+        console.error('[clientData] Failed to create task via repository:', error);
+        
+        // outbox失敗マーク（permanent failure判定）
+        if (outboxId) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isPermanent = errorMsg.includes('RLS') || 
+                              errorMsg.includes('permission') || 
+                              errorMsg.includes('403') ||
+                              errorMsg.includes('unauthorized');
+          
+          updateOutboxItem(outboxId, {
+            status: isPermanent ? 'failed' : 'pending',
+            lastAttemptAt: new Date().toISOString(),
+            lastError: errorMsg,
+            retryCount: 0
+          });
+          
+          // permanent failureの場合、DEV通知を出す（フォールバックで成功扱いにしない）
+          if (isPermanent) {
+            console.error('[clientData] PERMANENT FAILURE: Task creation blocked by RLS/permission');
+            // フォールバックはスキップ（失敗を隠さない）
+            return;
+          }
+        }
+        
+        // フォールバック: LocalStorageに直接書き込み（一時的な失敗の場合のみ）
+        const allTasks = storage.get<Record<string, ClientTask[]>>(STORAGE_KEYS.CLIENT_TASKS) || {};
+        const clientTasks = allTasks[clientId] || [];
+        allTasks[clientId] = [...clientTasks, normalizedTask];
+        storage.set(STORAGE_KEYS.CLIENT_TASKS, allTasks);
+      });
+    
+    // 同期返却（既存互換性のため）
+    return true;
+  } catch (error) {
+    console.error('Failed to add client task:', error);
+    return false;
+  }
 };
 
-// クライアントのタスクを更新（Phase 4: 自動で updatedAt/lastActivityAt を更新）
+// クライアントのタスクを更新（Phase 9.3: Repository経由 + outbox統合）
 export const updateClientTask = (clientId: string, taskId: string, updates: Partial<ClientTask>): boolean => {
-  const allTasks = storage.get<Record<string, ClientTask[]>>(STORAGE_KEYS.CLIENT_TASKS) || {};
-  const clientTasks = allTasks[clientId] || [];
-  
-  const taskIndex = clientTasks.findIndex(t => t.id === taskId);
-  if (taskIndex === -1) return false;
-  
-  const now = new Date().toISOString();
-  clientTasks[taskIndex] = { ...clientTasks[taskIndex], ...updates, updatedAt: now, lastActivityAt: now };
-  allTasks[clientId] = clientTasks;
-  return storage.set(STORAGE_KEYS.CLIENT_TASKS, allTasks);
+  try {
+    const mode = getCurrentDataMode();
+    const repo = getTaskRepository();
+    
+    const now = new Date().toISOString();
+    const updatesWithTimestamp = {
+      ...updates,
+      updatedAt: now,
+      lastActivityAt: now
+    };
+    
+    // supabaseモードのみoutbox追加
+    let outboxId: string | undefined;
+    if (mode === 'supabase') {
+      outboxId = addOutboxItem('task.update', {
+        id: taskId,
+        updates: updatesWithTimestamp
+      });
+    }
+    
+    // Repository経由で更新（非同期だが、fire-and-forgetで互換性維持）
+    repo.updateTask(taskId, updatesWithTimestamp as any)
+      .then(updated => {
+        console.log('[clientData] Task updated via repository:', updated.id);
+        
+        // outbox成功マーク
+        if (outboxId) {
+          updateOutboxItem(outboxId, {
+            status: 'sent',
+            lastAttemptAt: new Date().toISOString()
+          });
+        }
+        
+        // LocalStorageにも反映（mock mode互換性のため）
+        const allTasks = storage.get<Record<string, ClientTask[]>>(STORAGE_KEYS.CLIENT_TASKS) || {};
+        const clientTasks = allTasks[clientId] || [];
+        
+        const taskIndex = clientTasks.findIndex(t => t.id === taskId);
+        if (taskIndex !== -1) {
+          clientTasks[taskIndex] = { ...clientTasks[taskIndex], ...updatesWithTimestamp };
+          allTasks[clientId] = clientTasks;
+          storage.set(STORAGE_KEYS.CLIENT_TASKS, allTasks);
+        }
+      })
+      .catch(error => {
+        console.error('[clientData] Failed to update task via repository:', error);
+        
+        // outbox失敗マーク（permanent failure判定）
+        if (outboxId) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isPermanent = errorMsg.includes('RLS') || 
+                              errorMsg.includes('permission') || 
+                              errorMsg.includes('403') ||
+                              errorMsg.includes('unauthorized');
+          
+          updateOutboxItem(outboxId, {
+            status: isPermanent ? 'failed' : 'pending',
+            lastAttemptAt: new Date().toISOString(),
+            lastError: errorMsg,
+            retryCount: 0
+          });
+          
+          // permanent failureの場合、DEV通知を出す（フォールバックで成功扱いにしない）
+          if (isPermanent) {
+            console.error('[clientData] PERMANENT FAILURE: Task update blocked by RLS/permission');
+            // フォールバックはスキップ（失敗を隠さない）
+            return;
+          }
+        }
+        
+        // フォールバック: LocalStorageに直接書き込み（一時的な失敗の場合のみ）
+        const allTasks = storage.get<Record<string, ClientTask[]>>(STORAGE_KEYS.CLIENT_TASKS) || {};
+        const clientTasks = allTasks[clientId] || [];
+        
+        const taskIndex = clientTasks.findIndex(t => t.id === taskId);
+        if (taskIndex !== -1) {
+          clientTasks[taskIndex] = { ...clientTasks[taskIndex], ...updatesWithTimestamp };
+          allTasks[clientId] = clientTasks;
+          storage.set(STORAGE_KEYS.CLIENT_TASKS, allTasks);
+        }
+      });
+    
+    // 同期返却（既存互換性のため）
+    return true;
+  } catch (error) {
+    console.error('Failed to update client task:', error);
+    return false;
+  }
 };
 
 // クライアントのコンテンツを追加
@@ -846,17 +1011,95 @@ export const addClientApproval = (clientId: string, approval: ClientApproval): b
   return storage.set(STORAGE_KEYS.CLIENT_APPROVALS, allApprovals);
 };
 
-// クライアントの承認待ちを更新
+// クライアントの承認待ちを更新（Phase 9.3: Repository経由 + outbox統合）
 export const updateClientApproval = (clientId: string, approvalId: string, updates: Partial<ClientApproval>): boolean => {
-  const allApprovals = storage.get<Record<string, ClientApproval[]>>(STORAGE_KEYS.CLIENT_APPROVALS) || {};
-  const clientApprovals = allApprovals[clientId] || [];
-  
-  const approvalIndex = clientApprovals.findIndex(a => a.id === approvalId);
-  if (approvalIndex === -1) return false;
-  
-  clientApprovals[approvalIndex] = { ...clientApprovals[approvalIndex], ...updates };
-  allApprovals[clientId] = clientApprovals;
-  return storage.set(STORAGE_KEYS.CLIENT_APPROVALS, allApprovals);
+  try {
+    const mode = getCurrentDataMode();
+    const repo = getApprovalRepository();
+    
+    const now = new Date().toISOString();
+    const updatesWithTimestamp = {
+      ...updates,
+      updatedAt: now
+    };
+    
+    // supabaseモードのみoutbox追加
+    let outboxId: string | undefined;
+    if (mode === 'supabase') {
+      outboxId = addOutboxItem('approval.update', {
+        id: approvalId,
+        updates: updatesWithTimestamp
+      });
+    }
+    
+    // Repository経由で更新（非同期だが、fire-and-forgetで互換性維持）
+    repo.updateApproval(approvalId, updatesWithTimestamp as any)
+      .then(updated => {
+        console.log('[clientData] Approval updated via repository:', updated.id);
+        
+        // outbox成功マーク
+        if (outboxId) {
+          updateOutboxItem(outboxId, {
+            status: 'sent',
+            lastAttemptAt: new Date().toISOString()
+          });
+        }
+        
+        // LocalStorageにも反映（mock mode互換性のため）
+        const allApprovals = storage.get<Record<string, ClientApproval[]>>(STORAGE_KEYS.CLIENT_APPROVALS) || {};
+        const clientApprovals = allApprovals[clientId] || [];
+        
+        const approvalIndex = clientApprovals.findIndex(a => a.id === approvalId);
+        if (approvalIndex !== -1) {
+          clientApprovals[approvalIndex] = { ...clientApprovals[approvalIndex], ...updatesWithTimestamp };
+          allApprovals[clientId] = clientApprovals;
+          storage.set(STORAGE_KEYS.CLIENT_APPROVALS, allApprovals);
+        }
+      })
+      .catch(error => {
+        console.error('[clientData] Failed to update approval via repository:', error);
+        
+        // outbox失敗マーク（permanent failure判定）
+        if (outboxId) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isPermanent = errorMsg.includes('RLS') || 
+                              errorMsg.includes('permission') || 
+                              errorMsg.includes('403') ||
+                              errorMsg.includes('unauthorized');
+          
+          updateOutboxItem(outboxId, {
+            status: isPermanent ? 'failed' : 'pending',
+            lastAttemptAt: new Date().toISOString(),
+            lastError: errorMsg,
+            retryCount: 0
+          });
+          
+          // permanent failureの場合、DEV通知を出す（フォールバックで成功扱いにしない）
+          if (isPermanent) {
+            console.error('[clientData] PERMANENT FAILURE: Approval update blocked by RLS/permission');
+            // フォールバックはスキップ（失敗を隠さない）
+            return;
+          }
+        }
+        
+        // フォールバック: LocalStorageに直接書き込み（一時的な失敗の場合のみ）
+        const allApprovals = storage.get<Record<string, ClientApproval[]>>(STORAGE_KEYS.CLIENT_APPROVALS) || {};
+        const clientApprovals = allApprovals[clientId] || [];
+        
+        const approvalIndex = clientApprovals.findIndex(a => a.id === approvalId);
+        if (approvalIndex !== -1) {
+          clientApprovals[approvalIndex] = { ...clientApprovals[approvalIndex], ...updatesWithTimestamp };
+          allApprovals[clientId] = clientApprovals;
+          storage.set(STORAGE_KEYS.CLIENT_APPROVALS, allApprovals);
+        }
+      });
+    
+    // 同期返却（既存互換性のため）
+    return true;
+  } catch (error) {
+    console.error('Failed to update client approval:', error);
+    return false;
+  }
 };
 
 // クライアントのタスク一覧を取得
@@ -897,6 +1140,7 @@ export const getClientApprovals = (clientId: string): ClientApproval[] => {
 };
 
 // 全承認待ちを取得（全クライアント）
+// Phase 9.3: 同期版（既存コードとの互換性維持）
 export const getAllApprovals = (): Array<ClientApproval & { clientId: string; clientName: string }> => {
   const allClients = getAllClients();
   const result: Array<ClientApproval & { clientId: string; clientName: string }> = [];
@@ -916,6 +1160,7 @@ export const getAllApprovals = (): Array<ClientApproval & { clientId: string; cl
 };
 
 // 全タスクを取得（全クライアント）
+// Phase 9.3: 同期版（既存コードとの互換性維持）
 export const getAllTasks = (): Array<ClientTask & { clientId: string; clientName: string }> => {
   const allClients = getAllClients();
   const result: Array<ClientTask & { clientId: string; clientName: string }> = [];
@@ -1023,7 +1268,7 @@ export const notifyApprovalRequested = (clientName: string, contentTitle: string
   return addNotification({
     type: 'warning',
     title: '承認要請があります',
-    message: `${clientName}: ${contentTitle}の承認をお願いします`,
+    message: `${clientName}: ${contentTitle}の承認��お願いします`,
     read: false,
     targetUserId: reviewer,
     relatedClientId: clientId,
@@ -1061,7 +1306,7 @@ export const notifyApprovalRejected = (clientName: string, contentTitle: string,
   });
 };
 
-// タスク完了時の通知
+// タスク完時の通知
 export const notifyTaskCompleted = (clientName: string, taskTitle: string, assignee: string, clientId: string, taskId: string): boolean => {
   return addNotification({
     type: 'success',
@@ -1095,4 +1340,133 @@ export const notifyClientAdded = (clientName: string, clientId: string): boolean
     read: false,
     relatedClientId: clientId
   });
+};
+
+// ========================================
+// クライアント管理（Phase 7-3）
+// ========================================
+
+// クライアント追加（Repository経由 + outbox統合）
+export const addClient = (
+  client: {
+    name: string;
+    industry?: string;
+    mainContactName?: string;
+    mainContactEmail?: string;
+  }
+): boolean => {
+  try {
+    const mode = getCurrentDataMode();
+    const repo = getClientRepository();
+    const authUser = getCurrentAuthUser();
+    
+    // supabaseモードのみoutbox追加
+    let outboxId: string | undefined;
+    if (mode === 'supabase') {
+      outboxId = addOutboxItem('client.create', {
+        ...client,
+        org_id: authUser?.org_id
+      });
+    }
+    
+    // Repository経由で作成（非同期だが、fire-and-forgetで互換性維持）
+    repo.createClient({
+      name: client.name,
+      company: client.name,
+      status: 'pending',
+      assignedTo: authUser?.id || 'unknown',
+      createdBy: authUser?.id || 'unknown',
+      industry: client.industry,
+      // mainContactName/mainContactEmail をマッピング
+      contactPerson: client.mainContactName || '',
+      email: client.mainContactEmail || `temp-${Date.now()}@example.com`, // email必須のためダミー生成
+      contractStatus: 'pending',
+      monthlyFee: 0
+    } as any)
+      .then(created => {
+        console.log('[clientData] Client created via repository:', created.id);
+        
+        // outbox成功マーク
+        if (outboxId) {
+          updateOutboxItem(outboxId, {
+            status: 'sent',
+            lastAttemptAt: new Date().toISOString()
+          });
+        }
+        
+        // LocalStorageにも反映（mock mode互換性のため）
+        const clients = getDBClients();
+        const newClient: DBClient = {
+          id: created.id,
+          name: client.mainContactName || client.name,
+          company: client.name,
+          status: 'pending',
+          assignedTo: authUser?.id || 'unknown',
+          createdAt: created.createdAt || new Date().toISOString(),
+          updatedAt: created.updatedAt || new Date().toISOString(),
+          createdBy: authUser?.id || 'unknown',
+          industry: client.industry
+        };
+        
+        // 重複チェック
+        const exists = clients.some(c => c.id === newClient.id);
+        if (!exists) {
+          storage.set(STORAGE_KEYS.CLIENTS, [...clients, newClient]);
+        }
+        
+        // 通知を生成
+        notifyClientAdded(client.name, created.id);
+      })
+      .catch(error => {
+        console.error('[clientData] Failed to create client via repository:', error);
+        
+        // outbox失敗マーク（permanent failure判定）
+        if (outboxId) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isPermanent = errorMsg.includes('RLS') || 
+                              errorMsg.includes('permission') || 
+                              errorMsg.includes('403') ||
+                              errorMsg.includes('unauthorized');
+          
+          updateOutboxItem(outboxId, {
+            status: isPermanent ? 'failed' : 'pending',
+            lastAttemptAt: new Date().toISOString(),
+            lastError: errorMsg,
+            retryCount: 0
+          });
+          
+          // permanent failureの場合、DEV通知を出す（フォールバックで成功扱いにしない）
+          if (isPermanent) {
+            console.error('[clientData] PERMANENT FAILURE: Client creation blocked by RLS/permission');
+            // フォールバックはスキップ（失敗を隠さない）
+            return;
+          }
+        }
+        
+        // フォールバック: LocalStorageに直接書き込み（一時的な失敗の場合のみ）
+        const clients = getDBClients();
+        const newClient: DBClient = {
+          id: `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: client.mainContactName || client.name,
+          company: client.name,
+          status: 'pending',
+          assignedTo: authUser?.id || 'unknown',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: authUser?.id || 'unknown',
+          industry: client.industry
+        };
+        
+        storage.set(STORAGE_KEYS.CLIENTS, [...clients, newClient]);
+        
+        // 通知を生成
+        notifyClientAdded(client.name, newClient.id);
+      });
+    
+    // 同期返却（既存互換性のため）
+    return true;
+  } catch (error) {
+    console.error('Failed to add client:', error);
+    return false;
+  }
 };

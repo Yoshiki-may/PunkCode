@@ -1,6 +1,21 @@
-import { Building2, TrendingUp, AlertTriangle, Star, DollarSign } from 'lucide-react';
+import { Building2, TrendingUp, AlertTriangle, Star, DollarSign, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { AddClientModal } from '../AddClientModal';
+import { addClient } from '../../utils/clientData';
 
 export function ClientIntelligence() {
+  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
+  
+  const handleAddClient = (client: {
+    name: string;
+    industry?: string;
+    mainContactName?: string;
+    mainContactEmail?: string;
+  }) => {
+    addClient(client);
+    // モーダルは AddClientModal内で閉じられる
+  };
+  
   const clientStats = {
     total: 28,
     active: 24,
@@ -88,9 +103,18 @@ export function ClientIntelligence() {
 
   return (
     <div className="p-8 space-y-6">
-      <div>
-        <h1 className="text-2xl text-foreground mb-2">Client Intelligence</h1>
-        <p className="text-sm text-muted-foreground">クライアント統括 - 契約状況・満足度・リスク管理</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl text-foreground mb-2">Client Intelligence</h1>
+          <p className="text-sm text-muted-foreground">クライアント統括 - 契約状況・満足度・リスク管理</p>
+        </div>
+        <button
+          onClick={() => setIsAddClientModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="size-4" />
+          <span>新規クライアント</span>
+        </button>
       </div>
 
       {/* Stats */}
@@ -180,6 +204,13 @@ export function ClientIntelligence() {
           ))}
         </div>
       </div>
+      
+      {/* AddClientModal */}
+      <AddClientModal
+        isOpen={isAddClientModalOpen}
+        onClose={() => setIsAddClientModalOpen(false)}
+        onSave={handleAddClient}
+      />
     </div>
   );
 }

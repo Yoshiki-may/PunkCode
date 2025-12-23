@@ -128,6 +128,7 @@ export function DirectionApprovals() {
 
   // 名前からイニシャルを生成
   const getInitials = (name: string): string => {
+    if (!name) return '??'; // undefined/null/空文字対策
     const parts = name.split(' ');
     if (parts.length >= 2) {
       return parts[0].charAt(0) + parts[1].charAt(0);

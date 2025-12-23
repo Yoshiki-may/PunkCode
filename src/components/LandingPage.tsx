@@ -41,9 +41,9 @@ export function LandingPage({ onLogin, theme }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#f5f5f5] dark:bg-[#1a1a1a] relative overflow-hidden flex items-center justify-center py-12">
       {/* Background Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#2d5f4f]/10 via-transparent to-[#3a7a63]/10" />
-      <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-[#2d5f4f]/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-      <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-[#3a7a63]/5 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#2d5f4f]/10 via-transparent to-[#3a7a63]/10 pointer-events-none" />
+      <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-[#2d5f4f]/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-[#3a7a63]/5 rounded-full blur-3xl translate-x-1/3 translate-y-1/3 pointer-events-none" />
       
       {/* Main Content */}
       <div className="relative z-10 w-full max-w-6xl mx-auto px-6">
@@ -66,7 +66,7 @@ export function LandingPage({ onLogin, theme }: LandingPageProps) {
           {/* Login Button */}
           <button
             onClick={handleLoginClick}
-            className="group px-10 py-3.5 bg-[#2d5f4f] hover:bg-[#234739] text-white rounded-xl transition-all font-medium inline-flex items-center gap-3 shadow-lg hover:shadow-xl mb-16 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 hover:scale-105"
+            className="relative z-20 group px-10 py-3.5 bg-[#2d5f4f] hover:bg-[#234739] text-white rounded-xl transition-all font-medium inline-flex items-center gap-3 shadow-lg hover:shadow-xl mb-16 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 hover:scale-105 cursor-pointer"
           >
             <span>システムログイン</span>
             <svg 
@@ -145,8 +145,8 @@ export function LandingPage({ onLogin, theme }: LandingPageProps) {
           />
           
           {/* Modal */}
-          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
+            <div className="bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto">
               {/* Header */}
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-[#1a1a1a] dark:text-white mb-2">
