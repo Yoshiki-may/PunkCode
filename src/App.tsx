@@ -1,25 +1,42 @@
-import { PALSSChat } from './components/PALSSChat';
-import { ToastContainer } from './components/ui/Toast';
 import { useState, useEffect } from 'react';
+
+// Layout components
 import { Header } from './components/Header_Complete';
 import { TwoLayerSidebar } from './components/sidebar/TwoLayerSidebar';
 import { QAPanel } from './components/dev/QAPanel';
+
+// Utils and initialization
 import { initializeOnce } from './utils/seedInitializer';
 import { LandingPage } from './components/LandingPage';
-import { ClientRegistration } from './components/ClientRegistration';
+import { initializeAuthListener, onAuthStateChange } from './utils/auth';
+import { getCurrentUser } from './utils/mockDatabase';
+import { getCurrentDataMode } from './utils/supabase';
+import { startAutoPull, stopAutoPull } from './utils/autoPull';
+
+// Board components
+import { ControlBoardSidebar } from './components/control-board/ControlBoardSidebar';
+
+// Sales Board Components
 import { SalesBoard } from './components/SalesBoard';
-import { DirectionDashboard } from './components/direction-board/DirectionDashboard';
 import { MyClients } from './components/direction-board/MyClients';
+import { InboxAlerts } from './components/InboxAlerts';
+import { Tasks } from './components/Tasks';
+import { KPIReports } from './components/KPIReports';
+import { Pipeline } from './components/Pipeline';
+import { Reports } from './components/Reports';
+import { Clients } from './components/Clients';
+import { TelemarketingList } from './components/TelemarketingList';
+import { ClientDetailPage } from './components/ClientDetailPage';
+
+// Direction Board Components
+import { DirectionDashboard } from './components/direction-board/DirectionDashboard';
 import { DirectionTasks } from './components/direction-board/DirectionTasks';
 import { DirectionApprovals } from './components/direction-board/DirectionApprovals';
 import { DirectionClientDetail } from './components/direction-board/DirectionClientDetail';
-import { PALSSAIHome } from './components/PALSSAIHome';
-import { AIResearch } from './components/AIResearch';
-import { ScheduleBoard } from './components/ScheduleBoard';
-import { SNSNews } from './components/SNSNews';
-import { Chat } from './components/Chat';
-import { Settings } from './components/Settings';
 import { DirectionBoard } from './components/DirectionBoard';
+
+// Editor Board Components
+import { EditorBoardSidebar } from './components/editor-board/EditorBoardSidebar';
 import { EditorDashboardView } from './components/editor-board/EditorDashboardView';
 import { EditorMyProjects } from './components/editor-board/EditorMyProjects';
 import { EditorAssetLibrary } from './components/editor-board/EditorAssetLibrary';
@@ -27,12 +44,17 @@ import { EditorWorkspace } from './components/editor-board/EditorWorkspace';
 import { EditorReviewQueue } from './components/editor-board/EditorReviewQueue';
 import { EditorVersions } from './components/editor-board/EditorVersions';
 import { EditorTemplates } from './components/editor-board/EditorTemplates';
+
+// Creator Board Components
+import { CreatorBoardSidebar } from './components/creator-board/CreatorBoardSidebar';
 import { CreatorDashboardView } from './components/creator-board/CreatorDashboardView';
 import { CreatorMyProjects } from './components/creator-board/CreatorMyProjects';
-import { ShootCalendar } from './components/creator/ShootCalendar';
+import { ShootCalendar } from './components/creator-board/ShootCalendar';
 import { CreatorUploadAssets } from './components/creator-board/CreatorUploadAssets';
 import { CreatorAssetLibrary } from './components/creator-board/CreatorAssetLibrary';
-import { CreatorPortfolio } from './components/creator/CreatorPortfolio';
+import { CreatorPortfolio } from './components/creator-board/CreatorPortfolio';
+
+// Control Board Components
 import { ExecutiveDashboard } from './components/control-board/ExecutiveDashboard';
 import { FinancialOverview } from './components/control-board/FinancialOverview';
 import { ProjectPortfolio } from './components/control-board/ProjectPortfolio';
@@ -42,6 +64,9 @@ import { ClientIntelligence } from './components/control-board/ClientIntelligenc
 import { ApprovalCenter } from './components/control-board/ApprovalCenter';
 import { RiskManagement } from './components/control-board/RiskManagement';
 import { ReportsAnalytics } from './components/control-board/ReportsAnalytics';
+
+// Client Board Components
+import { ClientBoardSidebar } from './components/client-board/ClientBoardSidebar';
 import { ClientDashboardView } from './components/client-board/ClientDashboardView';
 import { ClientCalendarView } from './components/client-board/ClientCalendarView';
 import { ClientApprovalsView } from './components/client-board/ClientApprovalsView';
@@ -49,18 +74,17 @@ import { ClientReportsView } from './components/client-board/ClientReportsView';
 import { ClientMessagesView } from './components/client-board/ClientMessagesView';
 import { ClientDocumentsView } from './components/client-board/ClientDocumentsView';
 import { ClientSettingsView } from './components/client-board/ClientSettingsView';
-import { InboxAlerts } from './components/InboxAlerts';
-import { Tasks } from './components/Tasks';
-import { KPIReports } from './components/KPIReports';
-import { Pipeline } from './components/Pipeline';
-import { Reports } from './components/Reports';
-import { Clients } from './components/Clients';
-import { TelemarketingList } from './components/TelemarketingList';
-import { ClientDetailPage } from './components/ClientDetailPage';
-import { ControlBoardSidebar } from './components/control-board/ControlBoardSidebar';
-import { ClientBoardSidebar } from './components/client-board/ClientBoardSidebar';
-import { CreatorBoardSidebar } from './components/creator-board/CreatorBoardSidebar';
-import { EditorBoardSidebar } from './components/editor-board/EditorBoardSidebar';
+import { ClientRegistration } from './components/ClientRegistration';
+
+// Shared Components
+import { PALSSAIHome } from './components/PALSSAIHome';
+import { AIResearch } from './components/AIResearch';
+import { ScheduleBoard } from './components/schedule/ScheduleBoard';
+import { SNSNews } from './components/SNSNews';
+import { Chat } from './components/Chat';
+import { Settings } from './components/Settings';
+import { PALSSChat } from './components/PALSSChat';
+import { ToastContainer } from './components/ui/Toast';
 
 // PALSS SYSTEM - Main Application Component
 export default function App() {
@@ -86,10 +110,84 @@ export default function App() {
   // DEV: QAパネル表示状態
   const [showQAPanel, setShowQAPanel] = useState(false);
   
+  // ページロード時にLocalStorageからログイン状態を復元
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      // ユーザーが存在する場合はログイン済みとして扱う
+      setIsLoggedIn(true);
+      setUserRole(currentUser.role);
+      
+      // ロールに応じてボードを設定
+      switch (currentUser.role) {
+        case 'sales':
+          setCurrentBoard('sales');
+          setCurrentView('home');
+          break;
+        case 'direction':
+          setCurrentBoard('direction');
+          setCurrentView('direction-dashboard');
+          break;
+        case 'editor':
+          setCurrentBoard('editor');
+          setCurrentView('editor-home');
+          break;
+        case 'creator':
+          setCurrentBoard('creator');
+          setCurrentView('creator-home');
+          break;
+        case 'support':
+          setCurrentBoard('support');
+          setCurrentView('management-home');
+          break;
+        case 'client':
+          setCurrentBoard('client');
+          setCurrentView('client-home');
+          setIsClientRegistered(true);
+          break;
+      }
+    }
+  }, []); // 初回マウント時のみ実行
+  
   // 初回起動時にSeedデータを初期化（Comment/Contract）
   useEffect(() => {
     initializeOnce();
   }, []);
+  
+  // Initialize Auth listener (Supabase mode)
+  useEffect(() => {
+    const dataMode = getCurrentDataMode();
+    if (dataMode === 'supabase') {
+      initializeAuthListener();
+      
+      // Listen to auth state changes
+      const unsubscribe = onAuthStateChange((authState) => {
+        if (authState.isAuthenticated && !isLoggedIn) {
+          // Auto-login if authenticated
+          const user = getCurrentUser();
+          if (user) {
+            setIsLoggedIn(true);
+            setUserRole(user.role);
+            
+            // Phase 9.3: Start autoPull after auth
+            startAutoPull();
+          }
+        } else if (!authState.isAuthenticated && isLoggedIn && dataMode === 'supabase') {
+          // Auto-logout if session expired
+          setIsLoggedIn(false);
+          
+          // Phase 9.3: Stop autoPull on logout
+          stopAutoPull();
+        }
+      });
+      
+      return () => {
+        unsubscribe();
+        // Phase 9.3: Cleanup autoPull on unmount
+        stopAutoPull();
+      };
+    }
+  }, [isLoggedIn]);
 
   // Apply theme class to document root
   useEffect(() => {
@@ -771,7 +869,18 @@ export default function App() {
       )}
       <ToastContainer />
       {/* DEV: QAパネル */}
-      {showQAPanel && <QAPanel isOpen={showQAPanel} onClose={() => setShowQAPanel(false)} />}
+      {showQAPanel && (
+        <QAPanel 
+          isOpen={showQAPanel} 
+          onClose={() => setShowQAPanel(false)}
+          currentBoard={currentBoard}
+          currentView={currentView}
+          onNavigate={(board, view) => {
+            setCurrentBoard(board);
+            setCurrentView(view);
+          }}
+        />
+      )}
     </div>
   );
 }

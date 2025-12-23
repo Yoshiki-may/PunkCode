@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { getCurrentDataMode } from '../utils/supabase';
+import { signInWithPassword } from '../utils/auth';
+import { getUserProfileByAuthUid, syncProfileToAppState } from '../utils/userProfile';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -78,6 +81,50 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
     setError('');
     setIsLoading(true);
 
+    const dataMode = getCurrentDataMode();
+    
+    if (dataMode === 'supabase') {
+      // Supabase Auth
+      handleSupabaseLogin();
+    } else {
+      // Mock login
+      handleMockLogin();
+    }
+  };
+  
+  const handleSupabaseLogin = async () => {
+    try {
+      const result = await signInWithPassword(email, password);
+      
+      if (!result.success) {
+        setError(result.error || 'ログインに失敗しました');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get user profile from users table
+      if (result.user) {
+        const profile = await getUserProfileByAuthUid(result.user.id);
+        
+        if (!profile) {
+          setError('ユーザープロファイルが見つかりません。usersテーブルを確認してください。');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Sync profile to app state
+        syncProfileToAppState(profile);
+      }
+      
+      setIsLoading(false);
+      onLoginSuccess();
+    } catch (error: any) {
+      setError(error.message || 'ログインエラーが発生しました');
+      setIsLoading(false);
+    }
+  };
+  
+  const handleMockLogin = () => {
     // Simulate API call
     setTimeout(() => {
       const user = invitedUsers[email as keyof typeof invitedUsers];
@@ -103,7 +150,7 @@ export function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps)
 
   return (
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200 p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] animate-in fade-in duration-200 p-4"
       onClick={onClose}
     >
       <div 

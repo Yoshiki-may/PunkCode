@@ -73,4 +73,7 @@ export const STORAGE_KEYS = {
   
   // 契約データ（Sales Board KPI用）
   CONTRACTS: 'palss_contracts',             // 契約データ
+  
+  // コメントデータ（Phase 9.3）
+  COMMENTS: 'palss_client_comments',         // クライアントコメント
 } as const;

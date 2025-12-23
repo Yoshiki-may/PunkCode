@@ -1,7 +1,12 @@
 // Comment/Activity データモデル
 // noReply判定とクライアントコミュニケーション追跡のための基盤
+// Phase 9.3: Write系のみRepository経由（Read系は同期互換のため現状維持） + outbox統合
 
 import { storage } from './storage';
+import { getCommentRepository } from '../repositories';
+import { getCurrentAuthUser } from './auth';
+import { getCurrentDataMode } from './supabase';
+import { addOutboxItem, updateOutboxItem, deleteOutboxItem } from './outbox';
 
 const STORAGE_KEY = 'palss_client_comments';
 
@@ -14,9 +19,13 @@ export interface Comment {
   content: string;           // コメント内容
   createdAt: string;         // ISO 8601形式
   isFromClient: boolean;     // true=クライアントからのコメント、false=チームからの返信
+  // Phase 9.3: Supabase用メタデータ
+  org_id?: string;
+  client_id?: string;
+  user_id?: string;
 }
 
-// 全コメント取得
+// 全コメント取得（同期返却、既存互換性維持）
 export const getAllComments = (): Comment[] => {
   return storage.get<Comment[]>(STORAGE_KEY) || [];
 };
@@ -45,7 +54,7 @@ export const getApprovalComments = (clientId: string, approvalId: string): Comme
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 };
 
-// コメント追加
+// コメント追加（Repository経由 + outbox統合）
 export const addComment = (
   comment: Omit<Comment, 'id' | 'createdAt'> & { 
     id?: string;
@@ -53,21 +62,92 @@ export const addComment = (
   }
 ): boolean => {
   try {
-    const allComments = getAllComments();
+    const mode = getCurrentDataMode();
+    const repo = getCommentRepository();
+    const authUser = getCurrentAuthUser();
     
-    const newComment: Comment = {
-      id: comment.id || `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const commentData: Omit<Comment, 'id' | 'createdAt'> = {
       clientId: comment.clientId,
       taskId: comment.taskId,
       approvalId: comment.approvalId,
       userId: comment.userId,
       content: comment.content,
-      createdAt: comment.createdAt || new Date().toISOString(),
-      isFromClient: comment.isFromClient
+      isFromClient: comment.isFromClient,
+      // Phase 9.3: Supabase用メタデータ自動補完
+      org_id: authUser?.org_id,
+      client_id: comment.clientId,
+      user_id: comment.userId
     };
     
-    allComments.push(newComment);
-    return storage.set(STORAGE_KEY, allComments);
+    // supabaseモードのみoutbox追加
+    let outboxId: string | undefined;
+    if (mode === 'supabase') {
+      outboxId = addOutboxItem('comment.create', commentData);
+    }
+    
+    // Repository経由で作成（非同期だが、fire-and-forgetで互換性維持）
+    repo.createComment(commentData)
+      .then(created => {
+        console.log('[commentData] Comment created via repository:', created.id);
+        
+        // outbox成功マーク
+        if (outboxId) {
+          updateOutboxItem(outboxId, {
+            status: 'sent',
+            lastAttemptAt: new Date().toISOString()
+          });
+        }
+        
+        // LocalStorageにも反映（mock mode互換性のため）
+        const allComments = getAllComments();
+        const newComment: Comment = {
+          ...created,
+          id: comment.id || created.id, // 既存IDがあれば優先（seed用）
+          createdAt: comment.createdAt || created.createdAt
+        };
+        
+        // 重複チェック
+        const exists = allComments.some(c => c.id === newComment.id);
+        if (!exists) {
+          allComments.push(newComment);
+          storage.set(STORAGE_KEY, allComments);
+        }
+      })
+      .catch(error => {
+        console.error('[commentData] Failed to create comment via repository:', error);
+        
+        // outbox失敗マーク
+        if (outboxId) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          updateOutboxItem(outboxId, {
+            status: 'failed',
+            lastAttemptAt: new Date().toISOString(),
+            lastError: errorMsg,
+            retryCount: 0
+          });
+        }
+        
+        // フォールバック: LocalStorageに直接書き込み
+        const allComments = getAllComments();
+        const newComment: Comment = {
+          id: comment.id || `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          clientId: comment.clientId,
+          taskId: comment.taskId,
+          approvalId: comment.approvalId,
+          userId: comment.userId,
+          content: comment.content,
+          createdAt: comment.createdAt || new Date().toISOString(),
+          isFromClient: comment.isFromClient,
+          org_id: authUser?.org_id,
+          client_id: comment.clientId,
+          user_id: comment.userId
+        };
+        allComments.push(newComment);
+        storage.set(STORAGE_KEY, allComments);
+      });
+    
+    // 同期返却（既存互換性のため）
+    return true;
   } catch (error) {
     console.error('Failed to add comment:', error);
     return false;

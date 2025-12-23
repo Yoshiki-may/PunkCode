@@ -1,0 +1,1678 @@
+openapi: 3.0.3
+info:
+  title: PALSS SYSTEM API
+  description: |
+    SNS代行会社向けSaaSダッシュボード「PALSS SYSTEM」のAPI仕様
+    
+    ## 認証
+    - Supabase Auth（JWT Bearer Token）
+    - Authorization: Bearer <token>
+    
+    ## マルチテナント
+    - org_id: 組織分離（社内ロール）
+    - client_id: クライアント分離（Clientロール）
+    
+    ## ロール
+    - Sales, Direction, Editor, Creator, Support, Control, Client
+  version: 1.0.0
+  contact:
+    name: PALSS SYSTEM API Support
+    email: api@palss.example.com
+
+servers:
+  - url: https://api.palss.example.com/v1
+    description: Production server
+  - url: https://api-staging.palss.example.com/v1
+    description: Staging server
+
+tags:
+  - name: Auth
+    description: 認証・プロファイル
+  - name: Clients
+    description: クライアント管理
+  - name: Tasks
+    description: タスク管理
+  - name: Approvals
+    description: 承認管理
+  - name: Comments
+    description: コメント管理
+  - name: Contracts
+    description: 契約管理
+  - name: Notifications
+    description: 通知管理
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ========== Auth ==========
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: プロファイル取得
+      description: ログイン中のユーザープロファイルを取得
+      operationId: getProfile
+      responses:
+        '200':
+          description: プロファイル取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ========== Clients ==========
+  /clients:
+    get:
+      tags:
+        - Clients
+      summary: クライアント一覧取得
+      description: クライアント一覧を取得（org内 or 自社のみ）
+      operationId: getClients
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/since'
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [name, created_at]
+        - $ref: '#/components/parameters/sort_order'
+      responses:
+        '200':
+          description: クライアント一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Client'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Clients
+      summary: クライアント作成
+      description: 新規クライアントを作成（Sales, Controlのみ）
+      operationId: createClient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCreateRequest'
+      responses:
+        '201':
+          description: クライアント作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Client'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /clients/{clientId}:
+    get:
+      tags:
+        - Clients
+      summary: クライアント詳細取得
+      description: 指定したクライアントの詳細を取得
+      operationId: getClient
+      parameters:
+        - $ref: '#/components/parameters/clientId'
+      responses:
+        '200':
+          description: クライアント詳細取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Client'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Clients
+      summary: クライアント更新
+      description: 指定したクライアントを更新（Sales, Controlのみ）
+      operationId: updateClient
+      parameters:
+        - $ref: '#/components/parameters/clientId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientUpdateRequest'
+      responses:
+        '200':
+          description: クライアント更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Client'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ========== Tasks ==========
+  /tasks:
+    get:
+      tags:
+        - Tasks
+      summary: タスク一覧取得
+      description: タスク一覧を取得（org内 or 自社のみ）
+      operationId: getTasks
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/since'
+        - $ref: '#/components/parameters/client_id'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [not_started, in_progress, completed]
+        - name: assignee_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/date_from'
+        - $ref: '#/components/parameters/date_to'
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [due_date, created_at, updated_at]
+        - $ref: '#/components/parameters/sort_order'
+      responses:
+        '200':
+          description: タスク一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Tasks
+      summary: タスク作成
+      description: 新規タスクを作成（社内ロール全て）
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '201':
+          description: タスク作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /tasks/{taskId}:
+    get:
+      tags:
+        - Tasks
+      summary: タスク詳細取得
+      description: 指定したタスクの詳細を取得
+      operationId: getTask
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      responses:
+        '200':
+          description: タスク詳細取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Tasks
+      summary: タスク更新
+      description: 指定したタスクを更新（社内ロール全て）
+      operationId: updateTask
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdateRequest'
+      responses:
+        '200':
+          description: タスク更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ========== Approvals ==========
+  /approvals:
+    get:
+      tags:
+        - Approvals
+      summary: 承認一覧取得
+      description: 承認一覧を取得（org内 or 自社のみ）
+      operationId: getApprovals
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/since'
+        - $ref: '#/components/parameters/client_id'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+        - name: approver_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: submitter_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/date_from'
+        - $ref: '#/components/parameters/date_to'
+      responses:
+        '200':
+          description: 承認一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Approval'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Approvals
+      summary: 承認申請作成
+      description: 新規承認申請を作成（Sales, Direction, Editor, Creator）
+      operationId: createApproval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalCreateRequest'
+      responses:
+        '201':
+          description: 承認申請作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Approval'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /approvals/{approvalId}:
+    get:
+      tags:
+        - Approvals
+      summary: 承認詳細取得
+      description: 指定した承認の詳細を取得
+      operationId: getApproval
+      parameters:
+        - $ref: '#/components/parameters/approvalId'
+      responses:
+        '200':
+          description: 承認詳細取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Approval'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /approvals/{approvalId}/approve:
+    post:
+      tags:
+        - Approvals
+      summary: 承認
+      description: 指定した承認を承認（Direction, Controlのみ）
+      operationId: approveApproval
+      parameters:
+        - $ref: '#/components/parameters/approvalId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+                  description: 承認コメント
+      responses:
+        '200':
+          description: 承認成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Approval'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /approvals/{approvalId}/reject:
+    post:
+      tags:
+        - Approvals
+      summary: 差し戻し
+      description: 指定した承認を差し戻し（Direction, Controlのみ）
+      operationId: rejectApproval
+      parameters:
+        - $ref: '#/components/parameters/approvalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: 差し戻し理由
+      responses:
+        '200':
+          description: 差し戻し成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Approval'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ========== Comments ==========
+  /comments:
+    get:
+      tags:
+        - Comments
+      summary: コメント一覧取得
+      description: コメント一覧を取得（org内 or 自社のみ）
+      operationId: getComments
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/since'
+        - $ref: '#/components/parameters/client_id'
+        - name: task_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: approval_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [client_to_team, team_to_client]
+      responses:
+        '200':
+          description: コメント一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Comments
+      summary: コメント投稿
+      description: 新規コメントを投稿（全ロール）
+      operationId: createComment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreateRequest'
+      responses:
+        '201':
+          description: コメント投稿成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ========== Contracts ==========
+  /contracts:
+    get:
+      tags:
+        - Contracts
+      summary: 契約一覧取得
+      description: 契約一覧を取得（org内 or 自社のみ）
+      operationId: getContracts
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/q'
+        - $ref: '#/components/parameters/since'
+        - $ref: '#/components/parameters/client_id'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [negotiation, active, expired]
+        - name: renewal_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: renewal_to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 契約一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Contract'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Contracts
+      summary: 契約作成
+      description: 新規契約を作成（Sales, Controlのみ）
+      operationId: createContract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContractCreateRequest'
+      responses:
+        '201':
+          description: 契約作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Contract'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /contracts/{contractId}:
+    get:
+      tags:
+        - Contracts
+      summary: 契約詳細取得
+      description: 指定した契約の詳細を取得
+      operationId: getContract
+      parameters:
+        - $ref: '#/components/parameters/contractId'
+      responses:
+        '200':
+          description: 契約詳細取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Contract'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Contracts
+      summary: 契約更新
+      description: 指定した契約を更新（Sales, Controlのみ）
+      operationId: updateContract
+      parameters:
+        - $ref: '#/components/parameters/contractId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContractUpdateRequest'
+      responses:
+        '200':
+          description: 契約更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Contract'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ========== Notifications ==========
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: 通知一覧取得
+      description: 通知一覧を取得（自分宛のみ）
+      operationId: getNotifications
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/since'
+        - name: read
+          in: query
+          schema:
+            type: boolean
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [task_due, approval_due, comment, contract_renewal, approval_action]
+      responses:
+        '200':
+          description: 通知一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  meta:
+                    allOf:
+                      - $ref: '#/components/schemas/PaginationMeta'
+                      - type: object
+                        properties:
+                          unread_count:
+                            type: integer
+                            description: 未読通知数
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/{notificationId}:
+    patch:
+      tags:
+        - Notifications
+      summary: 通知既読
+      description: 指定した通知を既読にする
+      operationId: markNotificationAsRead
+      parameters:
+        - $ref: '#/components/parameters/notificationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - read
+              properties:
+                read:
+                  type: boolean
+      responses:
+        '200':
+          description: 通知既読成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Notifications
+      summary: 通知削除
+      description: 指定した通知を削除
+      operationId: deleteNotification
+      parameters:
+        - $ref: '#/components/parameters/notificationId'
+      responses:
+        '204':
+          description: 通知削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/mark-all-read:
+    post:
+      tags:
+        - Notifications
+      summary: 全通知を既読
+      description: 自分宛の全通知を既読にする
+      operationId: markAllNotificationsAsRead
+      responses:
+        '200':
+          description: 全通知既読成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      updated_count:
+                        type: integer
+                        description: 既読にした通知数
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/clear-all:
+    delete:
+      tags:
+        - Notifications
+      summary: 全通知を削除
+      description: 自分宛の全通知（既読のみ）を削除
+      operationId: clearAllNotifications
+      responses:
+        '200':
+          description: 全通知削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      deleted_count:
+                        type: integer
+                        description: 削除した通知数
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT Bearer Token
+
+  parameters:
+    clientId:
+      name: clientId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: クライアントID
+
+    taskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: タスクID
+
+    approvalId:
+      name: approvalId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: 承認ID
+
+    contractId:
+      name: contractId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: 契約ID
+
+    notificationId:
+      name: notificationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: 通知ID
+
+    limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+      description: 取得件数
+
+    cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+      description: ページングカーソル（Base64エンコード）
+
+    q:
+      name: q
+      in: query
+      schema:
+        type: string
+      description: 検索キーワード
+
+    since:
+      name: since
+      in: query
+      schema:
+        type: string
+        format: date-time
+      description: この日時以降の差分のみ取得（ISO 8601）
+
+    client_id:
+      name: client_id
+      in: query
+      schema:
+        type: string
+        format: uuid
+      description: クライアントID
+
+    date_from:
+      name: date_from
+      in: query
+      schema:
+        type: string
+        format: date
+      description: 日付範囲（開始）
+
+    date_to:
+      name: date_to
+      in: query
+      schema:
+        type: string
+        format: date
+      description: 日付範囲（終了）
+
+    sort_order:
+      name: sort_order
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: asc
+      description: ソート順序
+
+  schemas:
+    # ========== Common ==========
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: 総件数
+        next_cursor:
+          type: string
+          nullable: true
+          description: 次ページのカーソル
+        has_more:
+          type: boolean
+          description: 次ページがあるか
+        latest_timestamp:
+          type: string
+          format: date-time
+          nullable: true
+          description: 差分取得用の最新タイムスタンプ
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: エラーコード
+        message:
+          type: string
+          description: エラーメッセージ
+        details:
+          type: object
+          description: エラー詳細
+        request_id:
+          type: string
+          description: リクエストID
+
+    # ========== UserProfile ==========
+    UserProfile:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ユーザーID
+        email:
+          type: string
+          format: email
+          description: メールアドレス
+        name:
+          type: string
+          description: 氏名
+        role:
+          type: string
+          enum: [sales, direction, editor, creator, support, control, client]
+          description: ロール
+        org_id:
+          type: string
+          nullable: true
+          description: 組織ID（社内ロール）
+        client_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: クライアントID（Clientロール）
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+          description: アバターURL
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+
+    # ========== Client ==========
+    Client:
+      type: object
+      required:
+        - id
+        - name
+        - org_id
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: クライアントID
+        name:
+          type: string
+          description: クライアント名
+        org_id:
+          type: string
+          description: 組織ID
+        industry:
+          type: string
+          nullable: true
+          description: 業種
+        contact_email:
+          type: string
+          format: email
+          nullable: true
+          description: 連絡先メールアドレス
+        contact_phone:
+          type: string
+          nullable: true
+          description: 連絡先電話番号
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新日時
+
+    ClientCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: クライアント名
+        industry:
+          type: string
+          description: 業種
+        contact_email:
+          type: string
+          format: email
+          description: 連絡先メールアドレス
+        contact_phone:
+          type: string
+          description: 連絡先電話番号
+
+    ClientUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: クライアント名
+        industry:
+          type: string
+          description: 業種
+        contact_email:
+          type: string
+          format: email
+          description: 連絡先メールアドレス
+        contact_phone:
+          type: string
+          description: 連絡先電話番号
+        updated_at:
+          type: string
+          format: date-time
+          description: 楽観ロック用の更新日時
+
+    # ========== Task ==========
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - client_id
+        - status
+        - created_at
+        - updated_at
+        - last_activity_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: タスクID
+        title:
+          type: string
+          description: タスク名
+        description:
+          type: string
+          nullable: true
+          description: タスク説明
+        client_id:
+          type: string
+          format: uuid
+          description: クライアントID
+        status:
+          type: string
+          enum: [not_started, in_progress, completed]
+          description: ステータス
+        assignee_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 担当者ID
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: 期限
+        post_date:
+          type: string
+          format: date
+          nullable: true
+          description: 投稿日
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 完了日時
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新日時
+        last_activity_at:
+          type: string
+          format: date-time
+          description: 最終活動日時
+
+    TaskCreateRequest:
+      type: object
+      required:
+        - title
+        - client_id
+      properties:
+        title:
+          type: string
+          description: タスク名
+        description:
+          type: string
+          description: タスク説明
+        client_id:
+          type: string
+          format: uuid
+          description: クライアントID
+        status:
+          type: string
+          enum: [not_started, in_progress, completed]
+          default: not_started
+          description: ステータス
+        assignee_id:
+          type: string
+          format: uuid
+          description: 担当者ID
+        due_date:
+          type: string
+          format: date
+          description: 期限
+        post_date:
+          type: string
+          format: date
+          description: 投稿日
+
+    TaskUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          description: タスク名
+        description:
+          type: string
+          description: タスク説明
+        status:
+          type: string
+          enum: [not_started, in_progress, completed]
+          description: ステータス
+        assignee_id:
+          type: string
+          format: uuid
+          description: 担当者ID
+        due_date:
+          type: string
+          format: date
+          description: 期限
+        post_date:
+          type: string
+          format: date
+          description: 投稿日
+        completed_at:
+          type: string
+          format: date-time
+          description: 完了日時
+        updated_at:
+          type: string
+          format: date-time
+          description: 楽観ロック用の更新日時
+
+    # ========== Approval ==========
+    Approval:
+      type: object
+      required:
+        - id
+        - title
+        - client_id
+        - status
+        - submitter_id
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 承認ID
+        title:
+          type: string
+          description: 承認件名
+        description:
+          type: string
+          nullable: true
+          description: 承認説明
+        client_id:
+          type: string
+          format: uuid
+          description: クライアントID
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          description: ステータス
+        approver_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 承認者ID
+        submitter_id:
+          type: string
+          format: uuid
+          description: 申請者ID
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: 承認期限
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 承認日時
+        rejected_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 差し戻し日時
+        rejection_reason:
+          type: string
+          nullable: true
+          description: 差し戻し理由
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新日時
+
+    ApprovalCreateRequest:
+      type: object
+      required:
+        - title
+        - client_id
+      properties:
+        title:
+          type: string
+          description: 承認件名
+        description:
+          type: string
+          description: 承認説明
+        client_id:
+          type: string
+          format: uuid
+          description: クライアントID
+        approver_id:
+          type: string
+          format: uuid
+          description: 承認者ID
+        due_date:
+          type: string
+          format: date
+          description: 承認期限
+
+    # ========== Comment ==========
+    Comment:
+      type: object
+      required:
+        - id
+        - content
+        - author_id
+        - author_name
+        - client_id
+        - direction
+        - is_from_client
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: コメントID
+        content:
+          type: string
+          description: コメント本文
+        author_id:
+          type: string
+          format: uuid
+          description: 投稿者ID
+        author_name:
+          type: string
+          description: 投稿者名
+        task_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: タスクID
+        approval_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 承認ID
+        client_id:
+          type: string
+          format: uuid
+          description: クライアントID
+        direction:
+          type: string
+          enum: [client_to_team, team_to_client]
+          description: コメント方向
+        is_from_client:
+          type: boolean
+          description: Clientからのコメントか
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+
+    CommentCreateRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          description: コメント本文
+        task_id:
+          type: string
+          format: uuid
+          description: タスクID
+        approval_id:
+          type: string
+          format: uuid
+          description: 承認ID
+
+    # ========== Contract ==========
+    Contract:
+      type: object
+      required:
+        - id
+        - name
+        - client_id
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 契約ID
+        name:
+          type: string
+          description: 契約名
+        client_id:
+          type: string
+          format: uuid
+          description: クライアントID
+        status:
+          type: string
+          enum: [negotiation, active, expired]
+          description: ステータス
+        monthly_fee:
+          type: integer
+          nullable: true
+          description: 月額料金
+        start_date:
+          type: string
+          format: date
+          nullable: true
+          description: 開始日
+        end_date:
+          type: string
+          format: date
+          nullable: true
+          description: 終了日
+        renewal_date:
+          type: string
+          format: date
+          nullable: true
+          description: 更新期限
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新日時
+
+    ContractCreateRequest:
+      type: object
+      required:
+        - name
+        - client_id
+      properties:
+        name:
+          type: string
+          description: 契約名
+        client_id:
+          type: string
+          format: uuid
+          description: クライアントID
+        status:
+          type: string
+          enum: [negotiation, active, expired]
+          default: negotiation
+          description: ステータス
+        monthly_fee:
+          type: integer
+          description: 月額料金
+        start_date:
+          type: string
+          format: date
+          description: 開始日
+        end_date:
+          type: string
+          format: date
+          description: 終了日
+        renewal_date:
+          type: string
+          format: date
+          description: 更新期限
+
+    ContractUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 契約名
+        status:
+          type: string
+          enum: [negotiation, active, expired]
+          description: ステータス
+        monthly_fee:
+          type: integer
+          description: 月額料金
+        start_date:
+          type: string
+          format: date
+          description: 開始日
+        end_date:
+          type: string
+          format: date
+          description: 終了日
+        renewal_date:
+          type: string
+          format: date
+          description: 更新期限
+        updated_at:
+          type: string
+          format: date-time
+          description: 楽観ロック用の更新日時
+
+    # ========== Notification ==========
+    Notification:
+      type: object
+      required:
+        - id
+        - user_id
+        - type
+        - title
+        - message
+        - read
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 通知ID
+        user_id:
+          type: string
+          format: uuid
+          description: 宛先ユーザーID
+        type:
+          type: string
+          enum: [task_due, approval_due, comment, contract_renewal, approval_action]
+          description: 通知タイプ
+        title:
+          type: string
+          description: 通知タイトル
+        message:
+          type: string
+          description: 通知メッセージ
+        read:
+          type: boolean
+          description: 既読フラグ
+        related_client_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 関連クライアントID
+        related_item_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 関連アイテムID
+        related_item_type:
+          type: string
+          enum: [task, approval, comment, contract]
+          nullable: true
+          description: 関連アイテム種別
+        created_at:
+          type: string
+          format: date-time
+          description: 作成日時
+
+  responses:
+    BadRequest:
+      description: バリデーションエラー
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: 権限エラー
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: リソースが見つからない
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'
+
+    Conflict:
+      description: 競合エラー（楽観ロック）
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                $ref: '#/components/schemas/Error'

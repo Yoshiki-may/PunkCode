@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -52,13 +52,17 @@ import {
   Copy
 } from 'lucide-react';
 import { getClientById, ClientData } from '../../utils/clientData';
+import { getClientComments, addComment } from '../../utils/commentData';
+import { getCurrentAuthUser } from '../../utils/auth';
+import { getClientContract, addContract, updateContract, Contract } from '../../utils/contractData';
+import { ContractModal } from '../ContractModal';
 
 interface DirectionClientDetailProps {
   clientId?: string;
   onBack?: () => void;
 }
 
-type TabType = 'dashboard' | 'basicInfo' | 'progress' | 'calendar' | 'approval' | 'report' | 'proposal' | 'brand' | 'communication' | 'archive' | 'assets';
+type TabType = 'dashboard' | 'basicInfo' | 'progress' | 'calendar' | 'approval' | 'report' | 'proposal' | 'brand' | 'communication' | 'archive' | 'assets' | 'contract';
 
 interface Task {
   id: string;
@@ -214,8 +218,74 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   
+  // コメント関連の状態
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageInput, setMessageInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const currentUser = getCurrentAuthUser();
+  
+  // 契約関連の状態
+  const [contract, setContract] = useState<Contract | null>(null);
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [editingContract, setEditingContract] = useState<Contract | null>(null);
+  
   // 共通データからクライアント情報を取得
   const clientData = getClientById(clientId || 'client-1');
+  
+  // コメント一覧を読み込み（communicationタブで使用）
+  useEffect(() => {
+    if (!clientId) {
+      setMessages([]);
+      return;
+    }
+
+    const loadMessages = () => {
+      const comments = getClientComments(clientId);
+      
+      // Comment型をメッセージ表示用に変換
+      const formattedMessages = comments.map(comment => ({
+        id: comment.id,
+        sender: comment.isFromClient ? 'client' : 'team',
+        senderName: comment.isFromClient ? 'クライアント' : 'チーム',
+        content: comment.content,
+        timestamp: new Date(comment.createdAt).toLocaleString('ja-JP', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        avatar: comment.isFromClient ? '👨‍💼' : '👤',
+      }));
+      
+      setMessages(formattedMessages);
+    };
+
+    loadMessages();
+    
+    // autoPull対応：5秒間隔で再読み込み
+    const interval = setInterval(loadMessages, 5000);
+    return () => clearInterval(interval);
+  }, [clientId]);
+  
+  // 契約データを読み込み（contractタブで使用）
+  useEffect(() => {
+    if (!clientId) {
+      setContract(null);
+      return;
+    }
+
+    const loadContract = () => {
+      const clientContract = getClientContract(clientId);
+      setContract(clientContract || null);
+    };
+
+    loadContract();
+    
+    // autoPull対応：5秒間隔で再読み込み
+    const interval = setInterval(loadContract, 5000);
+    return () => clearInterval(interval);
+  }, [clientId]);
   
   // クライアントデータが見つからない場合のデフォルト
   if (!clientData) {
@@ -242,6 +312,7 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
   const tabs = [
     { id: 'dashboard' as TabType, label: 'ダッシュボード', icon: Sparkles },
     { id: 'basicInfo' as TabType, label: '基本情報', icon: Building2 },
+    { id: 'contract' as TabType, label: '契約管理', icon: FileText },
     { id: 'progress' as TabType, label: '進捗管理', icon: Target },
     { id: 'calendar' as TabType, label: '投稿カレンダー', icon: Calendar },
     { id: 'approval' as TabType, label: '承認センター', icon: CheckCircle2, badge: 3 },
@@ -268,6 +339,90 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
       } catch (err) {
         console.error('Failed to copy:', err);
       }
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || isSending || !clientId || !currentUser) {
+      return;
+    }
+
+    setIsSending(true);
+
+    try {
+      // コメントを追加（outbox統合済み）
+      const success = addComment({
+        clientId,
+        userId: currentUser.id,
+        content: messageInput.trim(),
+        isFromClient: currentUser.role === 'client'
+      });
+
+      if (success) {
+        setMessageInput('');
+        
+        // 即座にローカル表示を更新（楽観的UI更新）
+        const newMessage = {
+          id: `temp-${Date.now()}`,
+          sender: 'team',
+          senderName: 'チーム',
+          content: messageInput.trim(),
+          timestamp: new Date().toLocaleString('ja-JP', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          avatar: '👤',
+        };
+        setMessages(prev => [...prev, newMessage]);
+      }
+    } catch (error) {
+      console.error('[DirectionClientDetail] Failed to send message:', error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSaveContract = (contractData: Partial<Contract>) => {
+    if (!clientId) return;
+    
+    try {
+      if (editingContract) {
+        // 更新
+        const success = updateContract(editingContract.id, contractData);
+        if (success) {
+          console.log('[DirectionClientDetail] Contract updated');
+          // autoPullで最新データが反映される
+        }
+      } else {
+        // 新規追加
+        const success = addContract({
+          ...contractData,
+          clientId,
+        } as any);
+        if (success) {
+          console.log('[DirectionClientDetail] Contract added');
+          // autoPullで最新データが反映される
+        }
+      }
+      setIsContractModalOpen(false);
+      setEditingContract(null);
+    } catch (error) {
+      console.error('[DirectionClientDetail] Failed to save contract:', error);
+    }
+  };
+
+  const handleAddContract = () => {
+    setEditingContract(null);
+    setIsContractModalOpen(true);
+  };
+
+  const handleEditContract = () => {
+    if (contract) {
+      setEditingContract(contract);
+      setIsContractModalOpen(true);
     }
   };
 
@@ -748,41 +903,217 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
     </div>
   );
 
-  const renderCommunicationTab = () => (
-    <div className="space-y-4">
-      <div className="bg-card rounded-xl border border-border p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-card-foreground">制作物ごとのスレッド</h3>
-          <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 transition-colors">
-            + 新規スレッド
-          </button>
+  const renderContractTab = () => (
+    <div className="space-y-6">
+      {/* 契約情報カード */}
+      <div className="bg-card rounded-xl border border-border p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-card-foreground flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary" strokeWidth={2} />
+            契約情報
+          </h3>
+          {contract ? (
+            <button
+              onClick={handleEditContract}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 transition-colors"
+            >
+              編集
+            </button>
+          ) : (
+            <button
+              onClick={handleAddContract}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 transition-colors"
+            >
+              + 新規契約を追加
+            </button>
+          )}
         </div>
 
-        <div className="space-y-3">
-          {mockTasks.slice(0, 3).map((task) => (
-            <div key={task.id} className="p-4 rounded-lg bg-accent/30 hover:bg-accent/50 transition-colors cursor-pointer">
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <div className="text-sm text-card-foreground mb-1">{task.title}</div>
-                  <div className="text-xs text-muted-foreground">最終更新: 2時間前</div>
-                </div>
+        {contract ? (
+          <div className="space-y-4">
+            {/* ステータス */}
+            <div className="flex items-center justify-between p-4 rounded-lg bg-accent/30">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">ステータス</div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">3件の未読</span>
-                  <Bell className="w-4 h-4 text-primary" strokeWidth={2} />
+                  {contract.status === 'active' && (
+                    <span className="px-3 py-1 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 text-sm">
+                      アクティブ
+                    </span>
+                  )}
+                  {contract.status === 'negotiating' && (
+                    <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-sm">
+                      商談中
+                    </span>
+                  )}
+                  {contract.status === 'paused' && (
+                    <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm">
+                      一時停止
+                    </span>
+                  )}
+                  {contract.status === 'expired' && (
+                    <span className="px-3 py-1 rounded-full bg-destructive/10 text-destructive text-sm">
+                      期限切れ
+                    </span>
+                  )}
                 </div>
-              </div>
-              <div className="flex items-center gap-2 mt-3">
-                <div className="flex -space-x-2">
-                  {['YH', 'SM', 'TT'].map((initials, i) => (
-                    <div key={i} className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] border-2 border-card">
-                      {initials}
-                    </div>
-                  ))}
-                </div>
-                <span className="text-xs text-muted-foreground">3人が参加中</span>
               </div>
             </div>
-          ))}
+
+            {/* 月額料金 */}
+            <div className="p-4 rounded-lg bg-accent/30">
+              <div className="text-xs text-muted-foreground mb-1">月額料金</div>
+              <div className="text-2xl text-card-foreground">
+                ¥{contract.monthlyFee.toLocaleString()}
+              </div>
+            </div>
+
+            {/* 日付情報 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 rounded-lg bg-accent/30">
+                <div className="text-xs text-muted-foreground mb-1">契約開始日</div>
+                <div className="text-sm text-card-foreground">
+                  {new Date(contract.startDate).toLocaleDateString('ja-JP')}
+                </div>
+              </div>
+              
+              {contract.renewalDate && (
+                <div className="p-4 rounded-lg bg-accent/30">
+                  <div className="text-xs text-muted-foreground mb-1">更新期限日</div>
+                  <div className="text-sm text-card-foreground">
+                    {new Date(contract.renewalDate).toLocaleDateString('ja-JP')}
+                  </div>
+                </div>
+              )}
+              
+              {contract.endDate && (
+                <div className="p-4 rounded-lg bg-accent/30">
+                  <div className="text-xs text-muted-foreground mb-1">契約終了日</div>
+                  <div className="text-sm text-card-foreground">
+                    {new Date(contract.endDate).toLocaleDateString('ja-JP')}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* メタ情報 */}
+            <div className="pt-4 border-t border-border">
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="text-muted-foreground">作成日時: </span>
+                  <span className="text-card-foreground">
+                    {new Date(contract.createdAt).toLocaleString('ja-JP')}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">更新日時: </span>
+                  <span className="text-card-foreground">
+                    {new Date(contract.updatedAt).toLocaleString('ja-JP')}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" strokeWidth={1.5} />
+            <p className="text-muted-foreground mb-4">まだ契約が登録されていません</p>
+            <p className="text-sm text-muted-foreground">
+              「新規契約を追加」ボタンから契約情報を登録してください
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* 注意事項 */}
+      <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-xl border border-blue-500/20 p-5">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" strokeWidth={2} />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-card-foreground mb-2">契約管理について</h3>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>• 契約ステータスが「アクティブ」の場合、更新期限日の設定が必須です</p>
+              <p>• 更新期限日が設定されている場合、アラートで通知されます</p>
+              <p>• 契約情報はSales KPIの計算に使用されます</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCommunicationTab = () => (
+    <div className="space-y-4">
+      {/* メッセージ履歴 */}
+      <div className="bg-card rounded-xl border border-border flex flex-col" style={{ height: '600px' }}>
+        {/* Chat Header */}
+        <div className="p-4 border-b border-border">
+          <h3 className="text-card-foreground flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-primary" strokeWidth={2} />
+            クライアントとのコミュニケーション
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            クライアントとチーム間でのメッセージのやり取り
+          </p>
+        </div>
+
+        {/* Messages List */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <p>まだメッセージがありません</p>
+            </div>
+          ) : (
+            messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex gap-3 ${message.sender === 'team' ? 'flex-row-reverse' : ''}`}
+              >
+                <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-lg flex-shrink-0">
+                  {message.avatar}
+                </div>
+                <div className={`flex-1 max-w-[70%] ${message.sender === 'team' ? 'items-end' : ''}`}>
+                  <div className="text-xs text-muted-foreground mb-1">
+                    {message.senderName} • {message.timestamp}
+                  </div>
+                  <div
+                    className={`p-4 rounded-lg ${
+                      message.sender === 'team'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                    }`}
+                  >
+                    <div className="text-sm">{message.content}</div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Message Input */}
+        <div className="p-4 border-t border-border">
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && !isSending && handleSendMessage()}
+              placeholder="メッセージを入力..."
+              disabled={isSending}
+              className="flex-1 px-4 py-2 bg-muted rounded-lg outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isSending || !messageInput.trim()}
+              className="px-6 py-2 flex items-center gap-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="w-4 h-4" />
+              送信
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1528,6 +1859,8 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
         return renderProposalTab();
       case 'brand':
         return renderBrandTab();
+      case 'contract':
+        return renderContractTab();
       case 'communication':
         return renderCommunicationTab();
       case 'archive':
@@ -1541,6 +1874,18 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
 
   return (
     <div className="space-y-6">
+      {/* Contract Modal */}
+      <ContractModal
+        isOpen={isContractModalOpen}
+        onClose={() => {
+          setIsContractModalOpen(false);
+          setEditingContract(null);
+        }}
+        onSave={handleSaveContract}
+        contract={editingContract}
+        clientId={clientId || ''}
+      />
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
