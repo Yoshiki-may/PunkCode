@@ -1,5 +1,6 @@
 import { ChevronRight, Calendar, Clock } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAllTasks, getAllApprovals } from '../../utils/clientData';
 
 interface Deadline {
   id: string;
@@ -10,6 +11,7 @@ interface Deadline {
   type: 'delivery' | 'shooting' | 'posting';
   assignee: string;
   initials: string;
+  dueDate: Date; // ソート用
 }
 
 interface UpcomingDeadlinesCardProps {
@@ -18,59 +20,103 @@ interface UpcomingDeadlinesCardProps {
 
 export function UpcomingDeadlinesCard({ onNavigate }: UpcomingDeadlinesCardProps) {
   const [activeTab, setActiveTab] = useState<'delivery' | 'shooting' | 'posting'>('delivery');
+  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
 
-  const deadlines: Deadline[] = [
-    {
-      id: '1',
-      name: 'Instagram Reels - 新商品紹介',
-      client: 'AXAS株式会社',
-      date: '12/14',
-      relativeTime: '今日',
-      type: 'delivery',
-      assignee: '田中太郎',
-      initials: 'TT',
-    },
-    {
-      id: '2',
-      name: 'YouTube動画 - ブランドストーリー',
-      client: 'BAYMAX株式会社',
-      date: '12/15',
-      relativeTime: '明日',
-      type: 'delivery',
-      assignee: '佐藤花子',
-      initials: 'SH',
-    },
-    {
-      id: '3',
-      name: 'TikTok - チャレンジ動画',
-      client: 'デジタルフロンティア',
-      date: '12/16',
-      relativeTime: 'あと2日',
-      type: 'delivery',
-      assignee: '鈴木一郎',
-      initials: 'SI',
-    },
-    {
-      id: '4',
-      name: '商品撮影 - AXAS新商品',
-      client: 'AXAS株式会社',
-      date: '12/17',
-      relativeTime: 'あと3日',
-      type: 'shooting',
-      assignee: '高橋美咲',
-      initials: 'TM',
-    },
-    {
-      id: '5',
-      name: 'Instagram投稿 - キャンペーン告知',
-      client: 'BAYMAX株式会社',
-      date: '12/18',
-      relativeTime: 'あと4日',
-      type: 'posting',
-      assignee: '佐藤花子',
-      initials: 'SH',
-    },
-  ];
+  // タスクと承認待ちから期限データを動的に取得
+  useEffect(() => {
+    loadDeadlines();
+  }, []);
+
+  const loadDeadlines = () => {
+    const tasks = getAllTasks();
+    const approvals = getAllApprovals();
+    
+    const allDeadlines: Deadline[] = [];
+    
+    // タスクから期限を抽出
+    tasks.forEach(task => {
+      if (task.dueDate || task.postDate) {
+        const dueDateStr = task.dueDate || task.postDate;
+        const dueDate = new Date(dueDateStr);
+        
+        // タイプを判定（タイトルから推測）
+        let type: 'delivery' | 'shooting' | 'posting' = 'delivery';
+        const titleLower = task.title.toLowerCase();
+        if (titleLower.includes('撮影') || titleLower.includes('shooting')) {
+          type = 'shooting';
+        } else if (titleLower.includes('投稿') || titleLower.includes('posting') || task.status === 'completed') {
+          type = 'posting';
+        }
+        
+        allDeadlines.push({
+          id: task.id,
+          name: task.title,
+          client: task.clientName,
+          date: formatDate(dueDate),
+          relativeTime: getRelativeTime(dueDate),
+          type,
+          assignee: task.assignee,
+          initials: task.initials,
+          dueDate
+        });
+      }
+    });
+    
+    // 承認待ちから期限を抽出
+    approvals.forEach(approval => {
+      if (approval.submittedDate) {
+        // 承認待ちの場合、提出日から期限を推測（+3日）
+        const submittedDate = new Date(approval.submittedDate);
+        const dueDate = new Date(submittedDate);
+        dueDate.setDate(dueDate.getDate() + 3);
+        
+        allDeadlines.push({
+          id: approval.id,
+          name: approval.title,
+          client: approval.clientName,
+          date: formatDate(dueDate),
+          relativeTime: getRelativeTime(dueDate),
+          type: 'delivery', // 承認待ちは納期として扱う
+          assignee: approval.reviewer,
+          initials: getInitials(approval.reviewer),
+          dueDate
+        });
+      }
+    });
+    
+    // 期限が近い順にソート
+    allDeadlines.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    
+    setDeadlines(allDeadlines);
+  };
+
+  const formatDate = (date: Date): string => {
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}/${day}`;
+  };
+
+  const getRelativeTime = (deadline: Date): string => {
+    const now = new Date();
+    const diff = deadline.getTime() - now.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    
+    if (hours < 0) return '期限超過';
+    if (hours < 24) return '今日';
+    if (days === 1) return '明日';
+    if (days < 7) return `あと${days}日`;
+    return `${days}日後`;
+  };
+
+  const getInitials = (name: string): string => {
+    if (!name) return '??';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return parts[0][0] + parts[1][0];
+    }
+    return name.substring(0, 2);
+  };
 
   const filteredDeadlines = deadlines.filter(d => d.type === activeTab).slice(0, 5);
 

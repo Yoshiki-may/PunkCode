@@ -12,137 +12,18 @@ import {
   Pin,
   ChevronRight
 } from 'lucide-react';
-
-interface Client {
-  id: string;
-  name: string;
-  industry: string;
-  initials: string;
-  contractStart: string;
-  monthlyPosts: number;
-  platforms: string[];
-  followers: number;
-  followerChange: number;
-  engagement: number;
-  engagementChange: number;
-  status: 'approval-delay' | 'extra-requests' | 'recent-delay' | 'healthy';
-  statusLabel: string;
-  activeTasks: number;
-  isPinned: boolean;
-}
+import { getAllClients, ClientBasicInfo } from '../../utils/clientData';
 
 interface MyClientsProps {
   onClientSelect?: (clientId: string) => void;
 }
 
-const mockClients: Client[] = [
-  {
-    id: 'client-1',
-    name: '株式会社サンプル',
-    industry: '美容・コスメ',
-    initials: 'SS',
-    contractStart: '2024.04.01',
-    monthlyPosts: 32,
-    platforms: ['Instagram', 'Twitter', 'TikTok'],
-    followers: 24580,
-    followerChange: 6.3,
-    engagement: 7.2,
-    engagementChange: 5.9,
-    status: 'healthy',
-    statusLabel: '順調',
-    activeTasks: 8,
-    isPinned: true
-  },
-  {
-    id: 'client-2',
-    name: 'AXAS株式会社',
-    industry: 'IT・テクノロジー',
-    initials: 'AX',
-    contractStart: '2024.03.15',
-    monthlyPosts: 28,
-    platforms: ['Instagram', 'Twitter'],
-    followers: 18230,
-    followerChange: -2.1,
-    engagement: 5.8,
-    engagementChange: -1.2,
-    status: 'approval-delay',
-    statusLabel: '承認滞留',
-    activeTasks: 12,
-    isPinned: true
-  },
-  {
-    id: 'client-3',
-    name: 'BAYMAX株式会社',
-    industry: 'フード・飲食',
-    initials: 'BM',
-    contractStart: '2024.05.01',
-    monthlyPosts: 40,
-    platforms: ['Instagram', 'TikTok', 'Facebook'],
-    followers: 32150,
-    followerChange: 12.4,
-    engagement: 9.1,
-    engagementChange: 8.3,
-    status: 'extra-requests',
-    statusLabel: '追加要望増',
-    activeTasks: 15,
-    isPinned: false
-  },
-  {
-    id: 'client-4',
-    name: 'デジタルフロンティア',
-    industry: 'エンターテイメント',
-    initials: 'DF',
-    contractStart: '2024.02.10',
-    monthlyPosts: 24,
-    platforms: ['Twitter', 'TikTok'],
-    followers: 15680,
-    followerChange: 3.7,
-    engagement: 6.4,
-    engagementChange: 2.1,
-    status: 'recent-delay',
-    statusLabel: '直近遅延',
-    activeTasks: 6,
-    isPinned: false
-  },
-  {
-    id: 'client-5',
-    name: 'グローバルソリューションズ',
-    industry: 'コンサルティング',
-    initials: 'GS',
-    contractStart: '2024.01.20',
-    monthlyPosts: 20,
-    platforms: ['Instagram', 'Twitter'],
-    followers: 9840,
-    followerChange: 1.8,
-    engagement: 4.2,
-    engagementChange: 0.5,
-    status: 'healthy',
-    statusLabel: '順調',
-    activeTasks: 4,
-    isPinned: false
-  },
-  {
-    id: 'client-6',
-    name: 'クリエイティブワークス',
-    industry: 'デザイン・制作',
-    initials: 'CW',
-    contractStart: '2024.06.01',
-    monthlyPosts: 36,
-    platforms: ['Instagram', 'Twitter', 'TikTok'],
-    followers: 28900,
-    followerChange: 8.9,
-    engagement: 7.8,
-    engagementChange: 4.2,
-    status: 'healthy',
-    statusLabel: '順調',
-    activeTasks: 10,
-    isPinned: false
-  }
-];
-
 export function MyClients({ onClientSelect }: MyClientsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  
+  // 共通データから取得
+  const mockClients = getAllClients();
 
   const filteredClients = mockClients
     .filter(client => {
@@ -162,7 +43,8 @@ export function MyClients({ onClientSelect }: MyClientsProps) {
       'Instagram': 'bg-gradient-to-br from-purple-500 to-pink-500',
       'Twitter': 'bg-blue-400',
       'TikTok': 'bg-black dark:bg-white',
-      'Facebook': 'bg-blue-600'
+      'Facebook': 'bg-blue-600',
+      'YouTube': 'bg-red-600'
     };
     return colors[platform] || 'bg-gray-500';
   };
@@ -211,9 +93,6 @@ export function MyClients({ onClientSelect }: MyClientsProps) {
           <h1 className="text-2xl text-card-foreground mb-1">My Clients</h1>
           <p className="text-sm text-muted-foreground">担当しているクライアント一覧</p>
         </div>
-        <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:bg-primary/90 transition-colors">
-          + 新規クライアント
-        </button>
       </div>
 
       {/* Search & Filter */}

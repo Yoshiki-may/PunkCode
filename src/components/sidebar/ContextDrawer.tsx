@@ -52,17 +52,17 @@ export function ContextDrawer({
 
   return (
     <div
-      className="fixed top-16 left-16 h-[calc(100vh-4rem)] bg-card border-r border-border shadow-lg overflow-hidden z-30"
+      className="fixed top-16 left-16 h-[calc(100vh-4rem)] bg-card border-r border-border overflow-hidden z-30 transition-all duration-300 ease-in-out shadow-[4px_0_12px_rgba(0,0,0,0.05)]"
       style={{ width: `${width}px` }}
     >
       {/* Drawer Header */}
-      <div className="h-14 flex items-center justify-between px-4 border-b border-border">
+      <div className="h-14 flex items-center justify-between px-4 border-b border-border bg-card/95 backdrop-blur-sm">
         <h2 className="text-sm text-card-foreground text-[16px]">{title || 'Sales Board'}</h2>
         {/* Hide minimize button for Settings */}
         {onMinimize && !isSettings && (
           <button
             onClick={onMinimize}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all hover:scale-110 active:scale-95"
             title="最小化"
           >
             <ChevronLeft className="w-4 h-4" strokeWidth={2} />

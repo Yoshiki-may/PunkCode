@@ -250,8 +250,14 @@ export function VideoReview() {
 
       {/* Video Detail Modal (Placeholder) */}
       {selectedVideo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-8">
-          <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-auto">
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-8"
+          onClick={() => setSelectedVideo(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-8">
               <div className="flex items-start justify-between mb-6">
                 <div>

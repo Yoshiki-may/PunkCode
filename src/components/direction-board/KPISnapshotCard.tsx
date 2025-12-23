@@ -1,4 +1,7 @@
 import { ChevronRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { calculateDirectionKPI } from '../../utils/kpiCalculator';
+import { getAppState } from '../../utils/appState';
 
 interface KPI {
   id: string;
@@ -15,35 +18,78 @@ interface KPISnapshotCardProps {
 }
 
 export function KPISnapshotCard({ onNavigate }: KPISnapshotCardProps) {
-  const kpis: KPI[] = [
-    {
-      id: '1',
-      label: '納期遵守率',
-      value: '92',
-      unit: '%',
-      change: 3,
-      trend: 'up',
-      isPositive: true,
-    },
-    {
-      id: '2',
-      label: '差戻し率',
-      value: '8',
-      unit: '%',
-      change: -2,
-      trend: 'down',
-      isPositive: true,
-    },
-    {
-      id: '3',
-      label: '平均リードタイム',
-      value: '7.2',
-      unit: '日',
-      change: -1,
-      trend: 'down',
-      isPositive: true,
-    },
-  ];
+  const [kpis, setKpis] = useState<KPI[]>([]);
+  
+  // KPIを計算（5秒ごとに再計算して動的更新を反映）
+  useEffect(() => {
+    calculateKPIs();
+    
+    const interval = setInterval(calculateKPIs, 5000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const calculateKPIs = () => {
+    try {
+      const appState = getAppState();
+      const clientId = appState.selectedClientId || undefined;
+      
+      // Direction KPIを計算
+      const result = calculateDirectionKPI(clientId);
+      
+      // 納期遵守率（高いほど良い）
+      const onTimeTrend = result.onTimeRateChange > 0 ? 'up' : result.onTimeRateChange < 0 ? 'down' : 'stable';
+      const onTimeIsPositive = result.onTimeRateChange >= 0;
+      
+      // 差し戻し率（低いほど良い）
+      const rejectionTrend = result.rejectionRateChange > 0 ? 'up' : result.rejectionRateChange < 0 ? 'down' : 'stable';
+      const rejectionIsPositive = result.rejectionRateChange <= 0; // 減少が良い
+      
+      // 平均リードタイム（短いほど良い）
+      const leadTimeTrend = result.leadTimeChange > 0 ? 'up' : result.leadTimeChange < 0 ? 'down' : 'stable';
+      const leadTimeIsPositive = result.leadTimeChange <= 0; // 減少が良い
+      
+      const calculatedKPIs: KPI[] = [
+        {
+          id: '1',
+          label: '納期遵守率',
+          value: result.onTimeRate.toFixed(0),
+          unit: '%',
+          change: Math.abs(result.onTimeRateChange),
+          trend: onTimeTrend,
+          isPositive: onTimeIsPositive,
+        },
+        {
+          id: '2',
+          label: '差戻し率',
+          value: result.rejectionRate.toFixed(0),
+          unit: '%',
+          change: Math.abs(result.rejectionRateChange),
+          trend: rejectionTrend,
+          isPositive: rejectionIsPositive,
+        },
+        {
+          id: '3',
+          label: '平均リードタイム',
+          value: result.averageLeadTime.toFixed(1),
+          unit: '日',
+          change: Math.abs(result.leadTimeChange),
+          trend: leadTimeTrend,
+          isPositive: leadTimeIsPositive,
+        },
+      ];
+      
+      setKpis(calculatedKPIs);
+    } catch (error) {
+      console.error('[KPISnapshotCard] Error calculating KPIs:', error);
+      // エラー時はデフォルト値を設定
+      const defaultKPIs: KPI[] = [
+        { id: '1', label: '納期遵守率', value: '0', unit: '%', change: 0, trend: 'stable', isPositive: true },
+        { id: '2', label: '差戻し率', value: '0', unit: '%', change: 0, trend: 'stable', isPositive: true },
+        { id: '3', label: '平均リードタイム', value: '0.0', unit: '日', change: 0, trend: 'stable', isPositive: true },
+      ];
+      setKpis(defaultKPIs);
+    }
+  };
 
   const getTrendIcon = (trend: string, isPositive: boolean) => {
     if (trend === 'up') {
@@ -90,7 +136,7 @@ export function KPISnapshotCard({ onNavigate }: KPISnapshotCardProps) {
             <div className="flex items-center gap-2">
               {getTrendIcon(kpi.trend, kpi.isPositive)}
               <span className={`text-xs ${kpi.isPositive ? 'text-success' : 'text-destructive'}`}>
-                {Math.abs(kpi.change)}% 前週比
+                {kpi.change.toFixed(0)}% 前週比
               </span>
             </div>
           </div>

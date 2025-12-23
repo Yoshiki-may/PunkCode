@@ -42,7 +42,7 @@ export function IconRail({ activeItem, onItemClick, onSettingsClick, onFullscree
   };
 
   return (
-    <div className="fixed left-0 top-16 w-16 h-[calc(100vh-4rem)] bg-sidebar border-r border-sidebar-border flex flex-col items-center py-4 z-50">
+    <div className="fixed left-0 top-16 w-16 h-[calc(100vh-4rem)] bg-sidebar border-r border-sidebar-border flex flex-col items-center py-4 z-50 shadow-[2px_0_8px_rgba(0,0,0,0.03)]">
       {/* Rail Items */}
       <div className="flex flex-col gap-2 w-full px-2">
         {railItems.map((item) => {
@@ -58,20 +58,20 @@ export function IconRail({ activeItem, onItemClick, onSettingsClick, onFullscree
                 onMouseLeave={() => setHoveredItem(null)}
                 className={`w-full h-10 flex items-center justify-center rounded-lg transition-all duration-200 relative ${
                   isActive
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm scale-105'
+                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:scale-110'
                 }`}
               >
                 {/* Left Accent Bar */}
                 {isActive && (
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-6 bg-sidebar-primary rounded-r-full" />
+                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-6 bg-sidebar-primary rounded-r-full shadow-sm" />
                 )}
 
                 <Icon className="w-6 h-6" strokeWidth={2} />
 
                 {/* Badge */}
                 {item.badge && item.badge > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center animate-pulse">
                     {item.badge > 9 ? '9+' : item.badge}
                   </span>
                 )}
@@ -79,7 +79,7 @@ export function IconRail({ activeItem, onItemClick, onSettingsClick, onFullscree
 
               {/* Tooltip */}
               {isHovered && (
-                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-popover text-popover-foreground text-xs rounded-lg shadow-xl border border-border whitespace-nowrap z-50 pointer-events-none">
+                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-popover text-popover-foreground text-xs rounded-lg shadow-xl border border-border whitespace-nowrap z-50 pointer-events-none animate-in fade-in slide-in-from-left-1 duration-200">
                   {item.label}
                   <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-popover" />
                 </div>

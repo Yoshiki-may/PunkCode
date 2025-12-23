@@ -20,6 +20,8 @@ import {
   Archive
 } from 'lucide-react';
 import { AddClientModal, NewClientData } from './AddClientModal';
+import { getAllClients, ClientData } from '../utils/clientData';
+import { addClient as addDBClient, getCurrentUser } from '../utils/mockDatabase';
 
 interface Client {
   id: string;
@@ -44,149 +46,34 @@ interface ClientsProps {
   onClientSelect?: (clientId: string) => void;
 }
 
-const mockClients: Client[] = [
-  {
-    id: '1',
-    name: 'LUNETTA BEAUTY',
-    avatar: 'LB',
-    instagramHandle: '@lunetta_beauty',
-    contractStatus: 'active',
-    industry: 'Beauty & Cosmetics',
-    followers: 125800,
-    engagement: 4.2,
-    monthlyFee: 280000,
-    startDate: '2024-09-15',
-    contactPerson: '田中 美咲',
-    email: 'tanaka@lunetta.co.jp',
-    phone: '03-1234-5678',
-    location: '東京都渋谷区',
-    lastActivity: '2時間前',
-    nextMeeting: '2025-12-18 14:00'
-  },
-  {
-    id: '2',
-    name: 'URBAN THREADS',
-    avatar: 'UT',
-    instagramHandle: '@urban_threads',
-    contractStatus: 'active',
-    industry: 'Fashion & Apparel',
-    followers: 89400,
-    engagement: 5.1,
-    monthlyFee: 320000,
-    startDate: '2024-08-01',
-    contactPerson: '佐藤 健太',
-    email: 'sato@urbanthreads.jp',
-    phone: '03-2345-6789',
-    location: '東京都港区',
-    lastActivity: '1日前',
-    nextMeeting: '2025-12-20 10:00'
-  },
-  {
-    id: '3',
-    name: 'GREEN WELLNESS',
-    avatar: 'GW',
-    instagramHandle: '@green_wellness',
-    contractStatus: 'active',
-    industry: 'Health & Wellness',
-    followers: 67200,
-    engagement: 3.8,
-    monthlyFee: 250000,
-    startDate: '2024-10-10',
-    contactPerson: '山田 花子',
-    email: 'yamada@greenwellness.jp',
-    phone: '03-3456-7890',
-    location: '東京都世田谷区',
-    lastActivity: '3時間前'
-  },
-  {
-    id: '4',
-    name: 'TECH INNOVATIONS',
-    avatar: 'TI',
-    instagramHandle: '@tech_innovations',
-    contractStatus: 'pending',
-    industry: 'Technology & SaaS',
-    followers: 45600,
-    engagement: 3.2,
-    monthlyFee: 350000,
-    startDate: '2025-01-15',
-    contactPerson: '鈴木 太郎',
-    email: 'suzuki@techinnovations.co.jp',
-    phone: '03-4567-8901',
-    location: '東京都千代田区',
-    lastActivity: '5日前',
-    nextMeeting: '2025-12-16 15:00'
-  },
-  {
-    id: '5',
-    name: 'GOURMET DELIGHT',
-    avatar: 'GD',
-    instagramHandle: '@gourmet_delight',
-    contractStatus: 'active',
-    industry: 'Food & Beverage',
-    followers: 112300,
-    engagement: 6.3,
-    monthlyFee: 290000,
-    startDate: '2024-07-20',
-    contactPerson: '伊藤 麻衣',
-    email: 'ito@gourmetdelight.jp',
-    phone: '03-5678-9012',
-    location: '東京都中央区',
-    lastActivity: '30分前',
-    nextMeeting: '2025-12-17 11:00'
-  },
-  {
-    id: '6',
-    name: 'FITNESS PRO',
-    avatar: 'FP',
-    instagramHandle: '@fitness_pro',
-    contractStatus: 'paused',
-    industry: 'Fitness & Sports',
-    followers: 78900,
-    engagement: 4.5,
-    monthlyFee: 260000,
-    startDate: '2024-06-01',
-    contactPerson: '高橋 大輔',
-    email: 'takahashi@fitnesspro.jp',
-    phone: '03-6789-0123',
-    location: '東京都新宿区',
-    lastActivity: '2週間前'
-  },
-  {
-    id: '7',
-    name: 'ECO LIVING',
-    avatar: 'EL',
-    instagramHandle: '@eco_living',
-    contractStatus: 'active',
-    industry: 'Lifestyle & Sustainability',
-    followers: 56700,
-    engagement: 5.8,
-    monthlyFee: 240000,
-    startDate: '2024-11-01',
-    contactPerson: '中村 さくら',
-    email: 'nakamura@ecoliving.jp',
-    phone: '03-7890-1234',
-    location: '東京都目黒区',
-    lastActivity: '1時間前',
-    nextMeeting: '2025-12-19 13:00'
-  },
-  {
-    id: '8',
-    name: 'PET PARADISE',
-    avatar: 'PP',
-    instagramHandle: '@pet_paradise',
-    contractStatus: 'active',
-    industry: 'Pet Care & Products',
-    followers: 94100,
-    engagement: 7.2,
-    monthlyFee: 270000,
-    startDate: '2024-09-01',
-    contactPerson: '小林 一郎',
-    email: 'kobayashi@petparadise.jp',
-    phone: '03-8901-2345',
-    location: '東京都品川区',
-    lastActivity: '45分前'
+// 共通データからClientsコンポーネント用のデータ形式に変換
+const convertToClientFormat = (clientData: ClientData): Client => {
+  // contractStatus を適切にマッピング
+  let contractStatus: 'active' | 'pending' | 'paused' = 'active';
+  if (clientData.contractStatus === 'negotiating') {
+    contractStatus = 'pending';
+  } else if (clientData.contractStatus === 'active' || clientData.contractStatus === 'contracted') {
+    contractStatus = 'active';
   }
-];
+  
+  return {
+    id: clientData.id,
+    name: clientData.name,
+    avatar: clientData.initials,
+    instagramHandle: '@' + clientData.name.toLowerCase().replace(/\s+/g, '_').replace(/株式会社|会社/g, ''),
+    contractStatus: contractStatus,
+    industry: clientData.industry,
+    followers: clientData.followers,
+    engagement: clientData.engagement,
+    monthlyFee: 280000, // デフォルト値
+    startDate: clientData.contractStart.replace(/\./g, '-'),
+    contactPerson: clientData.contactPerson,
+    email: clientData.contactEmail,
+    phone: clientData.contactPhone,
+    location: clientData.address || '東京都',
+    lastActivity: '2時間前',
+  };
+};
 
 export function Clients({ onClientSelect }: ClientsProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -194,7 +81,11 @@ export function Clients({ onClientSelect }: ClientsProps) {
   const [sortBy, setSortBy] = useState<'name' | 'followers' | 'engagement' | 'startDate'>('name');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [clientsList, setClientsList] = useState<Client[]>(mockClients);
+  
+  // 共通データから取得して変換
+  const commonClients = getAllClients().map(convertToClientFormat);
+  const [clientsList, setClientsList] = useState<Client[]>(commonClients);
+  
   const [newClient, setNewClient] = useState({
     name: '',
     instagramHandle: '',
@@ -264,16 +155,33 @@ export function Clients({ onClientSelect }: ClientsProps) {
       return; // Validation
     }
 
-    // Generate avatar from first 2 letters
-    const avatar = newClientData.name.substring(0, 2).toUpperCase();
+    // 現在のユーザーを取得
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      console.error('ユーザーが見つかりません');
+      return;
+    }
 
-    const newId = (clientsList.length + 1).toString();
+    // LocalStorageに保存
+    const newDBClient = addDBClient({
+      name: newClientData.contactPerson,
+      company: newClientData.name,
+      status: newClientData.contractStatus === 'active' ? 'active' : newClientData.contractStatus === 'pending' ? 'pending' : 'inactive',
+      assignedTo: currentUser.id,
+      createdBy: currentUser.id,
+      industry: newClientData.industry,
+      budget: newClientData.monthlyFee,
+      notes: `電話: ${newClientData.phone}\n住所: ${newClientData.location}`,
+    });
+
+    // ローカルステートに追加（UIの即時更新のため）
+    const avatar = newClientData.name.substring(0, 2).toUpperCase();
     const today = new Date().toISOString().split('T')[0];
 
     setClientsList([
       ...clientsList,
       {
-        id: newId,
+        id: newDBClient.id,
         name: newClientData.name,
         avatar: avatar,
         instagramHandle: newClientData.instagramHandle || '@' + newClientData.name.toLowerCase().replace(/\s+/g, '_'),
@@ -291,20 +199,12 @@ export function Clients({ onClientSelect }: ClientsProps) {
       },
     ]);
 
-    // Reset form
-    setNewClient({
-      name: '',
-      instagramHandle: '',
-      industry: '',
-      contactPerson: '',
-      email: '',
-      phone: '',
-      location: '',
-      contractStatus: 'pending',
-      monthlyFee: 0,
-    });
-
     setShowAddModal(false);
+
+    // クライアント詳細画面に遷移
+    if (onClientSelect) {
+      onClientSelect(newDBClient.id);
+    }
   };
 
   // Filter and sort clients

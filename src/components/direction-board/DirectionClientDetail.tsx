@@ -51,6 +51,7 @@ import {
   Phone,
   Copy
 } from 'lucide-react';
+import { getClientById, ClientData } from '../../utils/clientData';
 
 interface DirectionClientDetailProps {
   clientId?: string;
@@ -115,93 +116,39 @@ interface Proposal {
   nextMonthTicket?: boolean;
 }
 
-const mockClient = {
-  id: 'client-1',
-  name: '株式会社サンプル',
-  industry: '美容・コスメ',
-  contractStart: '2024.04.01',
-  platforms: ['Instagram', 'Twitter', 'TikTok'],
-  monthlyPosts: 32,
-  activeProjects: 5
-};
+// mockClientは後でclientDataから取得するため削除
 
-const mockTasks: Task[] = [
-  {
-    id: 't1',
-    title: '新商品ローンチキャンペーン投稿',
-    status: 'approval',
-    postDate: '2025.12.24',
-    dueDate: '2025.12.22',
-    platform: 'Instagram',
-    assignee: 'Yamada',
-    initials: 'YH',
-    nextAction: 'クライアント最終確認待ち'
-  },
-  {
-    id: 't2',
-    title: 'クリスマス限定セール告知',
-    status: 'rejected',
-    postDate: '2025.12.23',
-    dueDate: '2025.12.21',
-    platform: 'Twitter',
-    assignee: 'Sato',
-    initials: 'SM',
-    rejectedCount: 2,
-    delayReason: 'クリエイティブ差戻し2回',
-    nextAction: '修正版再提出（本日中）'
-  },
-  {
-    id: 't3',
-    title: '年末セール事前告知',
-    status: 'in-progress',
-    postDate: '2025.12.26',
-    dueDate: '2025.12.24',
-    platform: 'Instagram',
-    assignee: 'Tanaka',
-    initials: 'TT',
-    nextAction: 'コピーライティング完成後デザイン着手'
-  },
-  {
-    id: 't4',
-    title: 'インフルエンサーコラボ投稿',
-    status: 'pending',
-    postDate: '2025.12.28',
-    dueDate: '2025.12.26',
-    platform: 'TikTok',
-    assignee: 'Suzuki',
-    initials: 'SK',
-    nextAction: 'インフルエンサー素材受領待ち'
-  }
-];
+// mockTasksはclientData.tasksから取得するため、ここでは不要
 
-const mockKPIs: KPI[] = [
+// mockKPIsはclientData.kpiから動的に生成するため削除
+const buildMockKPIs = (clientData: ClientData): KPI[] => [
   {
     label: 'フォロワー数',
-    current: '24,580',
-    previous: '23,120',
-    change: 6.3,
+    current: clientData.kpi.followers.current.toLocaleString(),
+    previous: Math.round(clientData.kpi.followers.current / (1 + clientData.kpi.followers.change / 100)).toLocaleString(),
+    change: clientData.kpi.followers.change,
     icon: Users
   },
   {
-    label: '平均いいね数',
-    current: '1,845',
-    previous: '1,620',
-    change: 13.9,
-    icon: Heart
-  },
-  {
     label: 'エンゲージメント率',
-    current: '7.2%',
-    previous: '6.8%',
-    change: 5.9,
+    current: `${clientData.kpi.engagement.current}%`,
+    previous: `${Math.round(clientData.kpi.engagement.current / (1 + clientData.kpi.engagement.change / 100) * 10) / 10}%`,
+    change: clientData.kpi.engagement.change,
     icon: TrendingUp
   },
   {
-    label: '平均リーチ数',
-    current: '18,230',
-    previous: '16,890',
-    change: 7.9,
+    label: 'リーチ',
+    current: (clientData.kpi.reach.current / 1000).toFixed(1) + 'k',
+    previous: Math.round(clientData.kpi.reach.current / (1 + clientData.kpi.reach.change / 100) / 1000).toFixed(1) + 'k',
+    change: clientData.kpi.reach.change,
     icon: Eye
+  },
+  {
+    label: 'インプレッション',
+    current: (clientData.kpi.impressions.current / 1000).toFixed(1) + 'k',
+    previous: Math.round(clientData.kpi.impressions.current / (1 + clientData.kpi.impressions.change / 100) / 1000).toFixed(1) + 'k',
+    change: clientData.kpi.impressions.change,
+    icon: Activity
   }
 ];
 
@@ -266,6 +213,31 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
   const [searchQuery, setSearchQuery] = useState('');
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  
+  // 共通データからクライアント情報を取得
+  const clientData = getClientById(clientId || 'client-1');
+  
+  // クライアントデータが見つからない場合のデフォルト
+  if (!clientData) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">クライアントが見つかりませんでした</p>
+          {onBack && (
+            <button onClick={onBack} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg">
+              戻る
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+  
+  // クライアントデータからKPIを生成
+  const mockKPIs = buildMockKPIs(clientData);
+  
+  // クライアントデータからタスクを取得
+  const mockTasks = clientData.tasks;
 
   const tabs = [
     { id: 'dashboard' as TabType, label: 'ダッシュボード', icon: Sparkles },
@@ -304,7 +276,8 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
       'Instagram': 'bg-gradient-to-br from-purple-500 to-pink-500',
       'Twitter': 'bg-blue-400',
       'TikTok': 'bg-black dark:bg-white',
-      'Facebook': 'bg-blue-600'
+      'Facebook': 'bg-blue-600',
+      'YouTube': 'bg-red-600'
     };
     return colors[platform] || 'bg-gray-500';
   };
@@ -1378,38 +1351,38 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
                 <div className="space-y-3">
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-xs text-muted-foreground">会社名</span>
-                    <span className="text-sm text-card-foreground font-medium">{mockClient.name}</span>
+                    <span className="text-sm text-card-foreground font-medium">{clientData.name}</span>
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-xs text-muted-foreground">業種</span>
-                    <span className="text-sm text-card-foreground">{mockClient.industry}</span>
+                    <span className="text-sm text-card-foreground">{clientData.industry}</span>
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-xs text-muted-foreground">担当者</span>
                     <div className="flex items-center gap-2">
                       <User className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={2} />
-                      <span className="text-sm text-card-foreground">田中太郎</span>
+                      <span className="text-sm text-card-foreground">{clientData.contactPerson}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-xs text-muted-foreground">メール</span>
                     <div className="flex items-center gap-2">
                       <Mail className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={2} />
-                      <span className="text-sm text-primary">sample@example.com</span>
+                      <span className="text-sm text-primary">{clientData.contactEmail}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-xs text-muted-foreground">電話番号</span>
                     <div className="flex items-center gap-2">
                       <Phone className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={2} />
-                      <span className="text-sm text-card-foreground">03-1234-5678</span>
+                      <span className="text-sm text-card-foreground">{clientData.contactPhone}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between py-2">
                     <span className="text-xs text-muted-foreground">契約日</span>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={2} />
-                      <span className="text-sm text-card-foreground">{mockClient.contractStart}</span>
+                      <span className="text-sm text-card-foreground">{clientData.contractStart}</span>
                     </div>
                   </div>
                 </div>
@@ -1440,11 +1413,11 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span className="text-xs text-muted-foreground">月間投稿数</span>
-                    <span className="text-sm text-card-foreground font-medium">{mockClient.monthlyPosts}件</span>
+                    <span className="text-sm text-card-foreground font-medium">{clientData.monthlyPosts}件</span>
                   </div>
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-xs text-muted-foreground">進行中プロジェクト</span>
-                    <span className="text-sm text-primary font-medium">{mockClient.activeProjects}件</span>
+                    <span className="text-xs text-muted-foreground">進行中タスク</span>
+                    <span className="text-sm text-primary font-medium">{clientData.activeTasks}件</span>
                   </div>
                 </div>
               </div>
@@ -1530,7 +1503,7 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
                 <span>連携プラットフォーム</span>
               </h2>
               <div className="flex items-center gap-3">
-                {mockClient.platforms.map((platform) => (
+                {clientData.platforms.map((platform) => (
                   <div
                     key={platform}
                     className={`px-4 py-2 rounded-lg ${getPlatformColor(platform)} text-white flex items-center gap-2`}
@@ -1577,14 +1550,14 @@ export function DirectionClientDetail({ clientId, onBack }: DirectionClientDetai
           <ArrowLeft className="w-5 h-5 text-muted-foreground" strokeWidth={2} />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl text-card-foreground mb-1">{mockClient.name}</h1>
+          <h1 className="text-2xl text-card-foreground mb-1">{clientData.name}</h1>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span>{mockClient.industry}</span>
+            <span>{clientData.industry}</span>
             <span>•</span>
-            <span>契約開始: {mockClient.contractStart}</span>
+            <span>契約開始: {clientData.contractStart}</span>
             <span>•</span>
             <div className="flex items-center gap-2">
-              {mockClient.platforms.map((platform) => (
+              {clientData.platforms.map((platform) => (
                 <div 
                   key={platform}
                   className={`w-6 h-6 rounded-full ${getPlatformColor(platform)} flex items-center justify-center`}

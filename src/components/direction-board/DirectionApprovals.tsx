@@ -1,11 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, RotateCcw, Clock, ChevronDown, Filter, Search, Eye } from 'lucide-react';
+import { 
+  getAllApprovals, 
+  updateClientApproval,
+  notifyApprovalCompleted,
+  notifyApprovalRejected
+} from '../../utils/clientData';
 
 interface ApprovalItem {
   id: string;
   name: string;
   type: 'video' | 'image' | 'copy';
   client: string;
+  clientId: string;
   project: string;
   deadline: string;
   relativeTime: string;
@@ -17,96 +24,132 @@ interface ApprovalItem {
   submitterInitials: string;
   submittedDate: string;
   thumbnailUrl?: string;
+  platform?: string;
 }
 
 export function DirectionApprovals() {
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'urgent' | 'overdue'>('all');
   const [filterType, setFilterType] = useState<'all' | 'video' | 'image' | 'copy'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const approvals: ApprovalItem[] = [
-    {
-      id: '1',
-      name: 'Instagram Reels - 新商品紹介',
-      type: 'video',
-      client: 'AXAS株式会社',
-      project: '春の新商品キャンペーン',
-      deadline: '2024/12/14 18:00',
-      relativeTime: 'あと4時間',
-      rejectedCount: 2,
-      status: 'urgent',
-      assignee: '田中太郎',
-      initials: 'TT',
-      submittedBy: '佐藤花子',
-      submitterInitials: 'SH',
-      submittedDate: '2024/12/13',
-    },
-    {
-      id: '2',
-      name: 'YouTube動画 - ブランドストーリー',
-      type: 'video',
-      client: 'BAYMAX株式会社',
-      project: 'ブランドリニューアル',
-      deadline: '2024/12/15 12:00',
-      relativeTime: 'あと20時間',
-      rejectedCount: 0,
-      status: 'pending',
-      assignee: '鈴木一郎',
-      initials: 'SI',
-      submittedBy: '高橋美咲',
-      submitterInitials: 'TM',
-      submittedDate: '2024/12/13',
-    },
-    {
-      id: '3',
-      name: 'TikTok - チャレンジ動画',
-      type: 'video',
-      client: 'デジタルフロンティア',
-      project: 'SNSバイラル企画',
-      deadline: '2024/12/14 12:00',
-      relativeTime: '期限超過',
-      rejectedCount: 1,
-      status: 'overdue',
-      assignee: '伊藤健太',
-      initials: 'IK',
-      submittedBy: '佐藤花子',
-      submitterInitials: 'SH',
-      submittedDate: '2024/12/12',
-    },
-    {
-      id: '4',
-      name: 'Instagram投稿画像 - 商品撮影',
-      type: 'image',
-      client: 'AXAS株式会社',
-      project: '春の新商品キャンペーン',
-      deadline: '2024/12/16 14:00',
-      relativeTime: 'あと2日',
-      rejectedCount: 0,
-      status: 'pending',
-      assignee: '田中太郎',
-      initials: 'TT',
-      submittedBy: '高橋美咲',
-      submitterInitials: 'TM',
-      submittedDate: '2024/12/13',
-    },
-    {
-      id: '5',
-      name: 'キャンペーンコピー - LP文言',
-      type: 'copy',
-      client: 'BAYMAX株式会社',
-      project: 'ブランドリニューアル',
-      deadline: '2024/12/17 10:00',
-      relativeTime: 'あと3日',
-      rejectedCount: 3,
-      status: 'urgent',
-      assignee: '佐藤花子',
-      initials: 'SH',
-      submittedBy: '鈴木一郎',
-      submitterInitials: 'SI',
-      submittedDate: '2024/12/12',
-    },
-  ];
+  // LocalStorageから承認待ちを読み込み
+  useEffect(() => {
+    loadApprovals();
+  }, []);
+
+  const loadApprovals = () => {
+    const allApprovals = getAllApprovals();
+    
+    // ClientApprovalをApprovalItem形式に変換
+    const formattedApprovals: ApprovalItem[] = allApprovals.map(approval => {
+      // 期限から相対時間を計算
+      const relativeTime = getRelativeTime(approval.deadline || approval.submittedDate);
+      
+      // ステータスを判定（期限と相対時間から）
+      const status = getStatusFromDeadline(approval.deadline || approval.submittedDate);
+      
+      // タイプを判定（プラットフォームから推測）
+      const type = getTypeFromTitle(approval.title);
+      
+      // 差し戻し回数（TODO: 承認履歴から計算）
+      const rejectedCount = 0;
+      
+      return {
+        id: approval.id,
+        name: approval.title,
+        type,
+        client: approval.clientName,
+        clientId: approval.clientId,
+        project: 'SNS運用プロジェクト', // TODO: プロジェクト名を取得
+        deadline: approval.deadline || approval.submittedDate,
+        relativeTime,
+        rejectedCount,
+        status,
+        assignee: approval.submittedBy,
+        initials: getInitials(approval.submittedBy),
+        submittedBy: approval.submittedBy,
+        submitterInitials: getInitials(approval.submittedBy),
+        submittedDate: approval.submittedDate,
+        platform: approval.platform
+      };
+    });
+    
+    // 期限が近い順にソート
+    formattedApprovals.sort((a, b) => {
+      const dateA = new Date(a.deadline).getTime();
+      const dateB = new Date(b.deadline).getTime();
+      return dateA - dateB;
+    });
+    
+    setApprovals(formattedApprovals);
+  };
+
+  // 期限から相対時間を計算
+  const getRelativeTime = (deadline: string): string => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const diff = deadlineDate.getTime() - now.getTime();
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (hours < 0) return '期限超過';
+    if (hours < 24) return `あと${hours}時間`;
+    if (days === 1) return '明日';
+    if (days <= 7) return `あと${days}日`;
+    return `${days}日後`;
+  };
+
+  // 期限からステータスを判定
+  const getStatusFromDeadline = (deadline: string): 'pending' | 'urgent' | 'overdue' => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const diff = deadlineDate.getTime() - now.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    
+    if (hours < 0) return 'overdue';
+    if (hours < 24) return 'urgent';
+    return 'pending';
+  };
+
+  // タイトルからタイプを判定
+  const getTypeFromTitle = (title: string): 'video' | 'image' | 'copy' => {
+    const lowerTitle = title.toLowerCase();
+    if (lowerTitle.includes('動画') || lowerTitle.includes('video') || lowerTitle.includes('reels') || lowerTitle.includes('tiktok') || lowerTitle.includes('youtube')) {
+      return 'video';
+    }
+    if (lowerTitle.includes('画像') || lowerTitle.includes('image') || lowerTitle.includes('写真') || lowerTitle.includes('photo')) {
+      return 'image';
+    }
+    return 'copy';
+  };
+
+  // 名前からイニシャルを生成
+  const getInitials = (name: string): string => {
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return parts[0].charAt(0) + parts[1].charAt(0);
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  // 承認処理
+  const handleApprove = (item: ApprovalItem) => {
+    updateClientApproval(item.clientId, item.id, { status: 'approved' });
+    // 承認完了通知を生成
+    notifyApprovalCompleted(item.client, item.name, item.submittedBy, item.clientId, item.id);
+    loadApprovals(); // リロード
+  };
+
+  // 差し戻し処理
+  const handleReject = (item: ApprovalItem) => {
+    updateClientApproval(item.clientId, item.id, { status: 'rejected' });
+    // 差し戻し通知を生成
+    notifyApprovalRejected(item.client, item.name, item.submittedBy, undefined, item.clientId, item.id);
+    loadApprovals(); // リロード
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -332,10 +375,10 @@ export function DirectionApprovals() {
                       <button className="p-1.5 hover:bg-accent rounded-lg transition-colors" title="プレビュー">
                         <Eye className="w-4 h-4 text-muted-foreground" strokeWidth={2} />
                       </button>
-                      <button className="p-1.5 hover:bg-success/10 rounded-lg transition-colors" title="承認">
+                      <button className="p-1.5 hover:bg-success/10 rounded-lg transition-colors" title="承認" onClick={() => handleApprove(item)}>
                         <CheckCircle2 className="w-4 h-4 text-success" strokeWidth={2} />
                       </button>
-                      <button className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors" title="差戻し">
+                      <button className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors" title="差戻し" onClick={() => handleReject(item)}>
                         <XCircle className="w-4 h-4 text-destructive" strokeWidth={2} />
                       </button>
                     </div>

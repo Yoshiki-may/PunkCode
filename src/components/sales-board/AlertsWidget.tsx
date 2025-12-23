@@ -1,6 +1,11 @@
 import { AlertTriangle, Clock, MessageSquareOff, FileX, FileCheck, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DetailDrawer } from '../DetailDrawer';
+import { getAllTasks, getAllApprovals } from '../../utils/clientData';
+import { normalizeTasks } from '../../utils/dataMigration';
+import { getStagnantThreshold, getNoReplyThreshold, getRenewalThreshold } from '../../utils/qaConfig';
+import { getNoReplyClients } from '../../utils/commentData';
+import { getUpcomingRenewalContracts } from '../../utils/contractData';
 
 interface Alert {
   id: string;
@@ -17,53 +22,122 @@ interface AlertsWidgetProps {
 }
 
 export function AlertsWidget({ onViewAllClick }: AlertsWidgetProps) {
-  const [alerts] = useState<Alert[]>([
-    {
-      id: '1',
-      type: 'overdue',
-      title: '期限切れ',
-      subtitle: 'タスク期限超過',
-      count: 3,
-      severity: 'critical',
-      icon: AlertTriangle,
-    },
-    {
-      id: '2',
-      type: 'no-reply',
-      title: '未返信',
-      subtitle: '5日以上未返信',
-      count: 7,
-      severity: 'warning',
-      icon: MessageSquareOff,
-    },
-    {
-      id: '3',
-      type: 'stagnant',
-      title: '停滞',
-      subtitle: 'ステージ滞留10日超',
-      count: 5,
-      severity: 'warning',
-      icon: Clock,
-    },
-    {
-      id: '4',
-      type: 'pending-approval',
-      title: '要承認',
-      subtitle: '承認待ち案件',
-      count: 2,
-      severity: 'info',
-      icon: FileCheck,
-    },
-    {
-      id: '5',
-      type: 'contract-renewal',
-      title: '契約更新期限',
-      subtitle: '30日以内に更新',
-      count: 4,
-      severity: 'warning',
-      icon: FileX,
-    },
-  ]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  
+  // アラートを動的に計算
+  useEffect(() => {
+    calculateAlerts();
+    
+    // 5秒ごとに再計算（タスク追加/更新の反映）
+    const interval = setInterval(calculateAlerts, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const calculateAlerts = () => {
+    const rawTasks = getAllTasks();
+    const approvals = getAllApprovals();
+    const now = new Date();
+    
+    // タスクを正規化（updatedAt/lastActivityAtがない場合に補完）
+    const tasks = normalizeTasks(rawTasks);
+    
+    // 閾値を取得（QAパネルで設定可能）
+    const stagnantThreshold = getStagnantThreshold();
+    const noReplyThreshold = getNoReplyThreshold();
+    const renewalThreshold = getRenewalThreshold();
+    
+    // 期限切れタスクをカウント
+    const overdueTasks = tasks.filter(task => {
+      if (task.dueDate || task.postDate) {
+        const dueDate = new Date(task.dueDate || task.postDate);
+        return dueDate < now && task.status !== 'completed';
+      }
+      return false;
+    });
+    
+    // 停滞タスクをカウント（QAパネルで設定した日数以上更新なし）
+    const stagnantTasks = tasks.filter(task => {
+      if (task.status === 'completed') return false;
+      
+      const lastActivity = task.lastActivityAt || task.updatedAt;
+      if (!lastActivity) return false;
+      
+      const lastActivityDate = new Date(lastActivity);
+      const daysSinceActivity = Math.floor((now.getTime() - lastActivityDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return daysSinceActivity >= stagnantThreshold;
+    });
+    
+    // 未返信をカウント
+    // 判定ルール:
+    // 1) クライアントごとにコメントを時系列で取得
+    // 2) 最後のコメントが isFromClient=true
+    // 3) そこから noReplyThreshold 日以上経過
+    // 4) 以後にチーム側返信（isFromClient=false）が無い
+    const noReplyClientIds = getNoReplyClients(noReplyThreshold);
+    const noReplyCount = noReplyClientIds.length;
+    
+    // 承認待ちをカウント
+    const pendingApprovals = approvals.filter(a => a.status === 'pending');
+    
+    // 契約更新期限（renewalThreshold日以内）
+    // 判定ルール:
+    // 1) status='active' の契約
+    // 2) renewalDate（なければendDate）が存在
+    // 3) renewalDate が now 以降、now + renewalThreshold 日以内
+    const upcomingRenewals = getUpcomingRenewalContracts(renewalThreshold);
+    const contractRenewalCount = upcomingRenewals.length;
+    
+    const calculatedAlerts: Alert[] = [
+      {
+        id: '1',
+        type: 'overdue',
+        title: '期限切れ',
+        subtitle: 'タスク期限超過',
+        count: overdueTasks.length,
+        severity: overdueTasks.length > 0 ? 'critical' : 'info',
+        icon: AlertTriangle,
+      },
+      {
+        id: '2',
+        type: 'no-reply',
+        title: '未返信',
+        subtitle: `${noReplyThreshold}日以上未返信`,
+        count: noReplyCount,
+        severity: noReplyCount > 0 ? 'warning' : 'info',
+        icon: MessageSquareOff,
+      },
+      {
+        id: '3',
+        type: 'stagnant',
+        title: '停滞',
+        subtitle: `${stagnantThreshold}日以上更新なし`,
+        count: stagnantTasks.length,
+        severity: stagnantTasks.length > 0 ? 'warning' : 'info',
+        icon: Clock,
+      },
+      {
+        id: '4',
+        type: 'pending-approval',
+        title: '要承認',
+        subtitle: '承認待ち案件',
+        count: pendingApprovals.length,
+        severity: pendingApprovals.length > 0 ? 'info' : 'info',
+        icon: FileCheck,
+      },
+      {
+        id: '5',
+        type: 'contract-renewal',
+        title: '契約更新期限',
+        subtitle: `${renewalThreshold}日以内に更新`,
+        count: contractRenewalCount,
+        severity: contractRenewalCount > 0 ? 'warning' : 'info',
+        icon: FileX,
+      },
+    ];
+    
+    setAlerts(calculatedAlerts);
+  };
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);

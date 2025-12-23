@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle, Clock, Plus, Search, User, Users, Calendar, Link as LinkIcon, MoreHorizontal, ArrowRight, Filter } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAllTasks, updateClientTask, getAllClients } from '../utils/clientData';
 
 interface Task {
   id: string;
@@ -10,6 +11,7 @@ interface Task {
   assignee: string;
   assigneeType: 'self' | 'team';
   clientName: string;
+  clientId: string;
   projectName: string;
   deadline: string;
   createdBy: string;
@@ -18,114 +20,68 @@ interface Task {
 }
 
 export function Tasks() {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'AXAS社への提案資料最終確認・送付',
-      description: '提案資料のレビューを完了し、クライアントへ送付する',
-      status: 'in-progress',
-      priority: 'high',
-      assignee: '自分',
-      assigneeType: 'self',
-      clientName: 'AXAS株式会社',
-      projectName: 'SNS運用代行プロジェクト',
-      deadline: '2024/12/14 14:00',
-      createdBy: '田中太郎',
-      createdDate: '2024/12/10',
-      relatedLinks: ['提案資料.pptx', '見積書.xlsx'],
-    },
-    {
-      id: '2',
-      title: 'BAYMAXフォローアップ電話',
-      description: '前回の提案後のフォローアップを実施',
-      status: 'todo',
-      priority: 'high',
-      assignee: '佐藤花子',
-      assigneeType: 'team',
-      clientName: 'BAYMAX株式会社',
-      projectName: 'インフルエンサーマーケティング',
-      deadline: '2024/12/14 16:00',
-      createdBy: '自分',
-      createdDate: '2024/12/12',
-    },
-    {
-      id: '3',
-      title: 'デジタルフロンティア社議事録作成・共有',
-      description: '12/11のミーティングの議事録を作成して共有',
-      status: 'in-progress',
-      priority: 'medium',
-      assignee: '自分',
-      assigneeType: 'self',
-      clientName: 'デジタルフロンティア株式会社',
-      projectName: 'コンテンツ制作サポート',
-      deadline: '2024/12/14 18:00',
-      createdBy: '自分',
-      createdDate: '2024/12/11',
-      relatedLinks: ['ミーティング録音.mp3'],
-    },
-    {
-      id: '4',
-      title: 'クリエイティブワークス見積書作成',
-      description: '新規プロジェクトの見積書を作成',
-      status: 'review',
-      priority: 'medium',
-      assignee: '鈴木一郎',
-      assigneeType: 'team',
-      clientName: 'クリエイティブワークス',
-      projectName: 'ブランディング支援',
-      deadline: '2024/12/15 12:00',
-      createdBy: '田中太郎',
-      createdDate: '2024/12/13',
-    },
-    {
-      id: '5',
-      title: 'マーケティングラボ月次レポート作成',
-      description: '11月分の運用レポートを作成',
-      status: 'todo',
-      priority: 'low',
-      assignee: '高橋美咲',
-      assigneeType: 'team',
-      clientName: 'マーケティングラボ',
-      projectName: '月次運用サポート',
-      deadline: '2024/12/16 17:00',
-      createdBy: '山田次郎',
-      createdDate: '2024/12/13',
-    },
-    {
-      id: '6',
-      title: 'ビジネスソリューションズ契約書レビュー',
-      description: '更新契約書の内容確認',
-      status: 'completed',
-      priority: 'high',
-      assignee: '自分',
-      assigneeType: 'self',
-      clientName: 'ビジネスソリューションズ',
-      projectName: 'コンサルティング',
-      deadline: '2024/12/13 10:00',
-      createdBy: '自分',
-      createdDate: '2024/12/12',
-    },
-    {
-      id: '7',
-      title: 'SNS投稿コンテンツ作成',
-      description: '来週分のSNS投稿を5件作成',
-      status: 'in-progress',
-      priority: 'medium',
-      assignee: '自分',
-      assigneeType: 'self',
-      clientName: 'AXAS株式会社',
-      projectName: 'SNS運用代行プロジェクト',
-      deadline: '2024/12/15 17:00',
-      createdBy: '田中太郎',
-      createdDate: '2024/12/13',
-    },
-  ]);
-
-  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'todo' | 'in-progress' | 'review' | 'completed'>('all');
   const [filterAssignee, setFilterAssignee] = useState<'all' | 'self' | 'team'>('all');
-  const [filterPriority, setFilterPriority] = useState<'all' | Task['priority']>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  // LocalStorageからタスクを読み込み
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  const loadTasks = () => {
+    const allTasks = getAllTasks();
+    
+    // ClientTaskをTask形式に変換
+    const formattedTasks: Task[] = allTasks.map(task => {
+      // ステータスをマッピング
+      let status: 'todo' | 'in-progress' | 'review' | 'completed' = 'todo';
+      if (task.status === 'in-progress') status = 'in-progress';
+      if (task.status === 'approval') status = 'review';
+      if (task.status === 'completed') status = 'completed';
+      
+      // 優先度を判定（期限が近いほど高優先度）
+      const priority = getPriorityFromDeadline(task.postDate);
+      
+      // 担当者タイプ（現在のユーザーかチームメンバーか）
+      // 簡易実装: 現状は全て'self'としておく
+      const assigneeType: 'self' | 'team' = 'self';
+      
+      return {
+        id: task.id,
+        title: task.title,
+        description: `${task.platform}投稿`,
+        status,
+        priority,
+        assignee: task.assignee,
+        assigneeType,
+        clientName: task.clientName,
+        clientId: task.clientId,
+        projectName: 'SNS運用代行プロジェクト',
+        deadline: task.postDate,
+        createdBy: task.assignee,
+        createdDate: task.postDate,
+        relatedLinks: []
+      };
+    });
+    
+    setTasks(formattedTasks);
+  };
+
+  // 期限から優先度を判定
+  const getPriorityFromDeadline = (deadline: string): 'high' | 'medium' | 'low' => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const diff = deadlineDate.getTime() - now.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    
+    if (hours < 24) return 'high';
+    if (hours < 72) return 'medium';
+    return 'low';
+  };
 
   const handleStatusChange = (id: string, status: Task['status']) => {
     setTasks(tasks.map(task => 
@@ -190,8 +146,8 @@ export function Tasks() {
   };
 
   const filteredTasks = tasks.filter(task => {
+    if (filterStatus !== 'all' && task.status !== filterStatus) return false;
     if (filterAssignee !== 'all' && task.assigneeType !== filterAssignee) return false;
-    if (filterPriority !== 'all' && task.priority !== filterPriority) return false;
     if (searchQuery && !task.title.toLowerCase().includes(searchQuery.toLowerCase()) && 
         !task.clientName.toLowerCase().includes(searchQuery.toLowerCase()) &&
         !task.projectName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -335,14 +291,15 @@ export function Tasks() {
             </select>
 
             <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value as any)}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as any)}
               className="px-4 py-2.5 bg-background border border-border rounded-lg text-sm text-card-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="all">すべての優先度</option>
-              <option value="high">高</option>
-              <option value="medium">中</option>
-              <option value="low">低</option>
+              <option value="all">すべてのステータス</option>
+              <option value="todo">To Do</option>
+              <option value="in-progress">進行中</option>
+              <option value="review">レビュー待ち</option>
+              <option value="completed">完了</option>
             </select>
 
             <div className="flex gap-1 p-1 bg-background border border-border rounded-lg">

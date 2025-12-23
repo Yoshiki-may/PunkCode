@@ -85,12 +85,12 @@ export function CompactDrawer({ activeItem, onItemClick, onExpand, currentView, 
   const menuItems = getMenuItemsForCategory(activeItem, currentBoard);
 
   return (
-    <div className="fixed top-16 left-16 w-16 h-[calc(100vh-4rem)] bg-sidebar border-r border-sidebar-border flex flex-col items-center py-4 z-30">
+    <div className="fixed top-16 left-16 w-16 h-[calc(100vh-4rem)] bg-sidebar border-r border-sidebar-border flex flex-col items-center py-4 z-30 transition-all duration-300 ease-in-out shadow-[4px_0_12px_rgba(0,0,0,0.05)]">
       {/* Expand Button */}
       <div className="w-full px-2 mb-4">
         <button
           onClick={onExpand}
-          className="w-full h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all"
+          className="w-full h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all hover:scale-110 active:scale-95"
           title="展開"
         >
           <ChevronRight className="w-5 h-5" strokeWidth={2} />
@@ -111,8 +111,8 @@ export function CompactDrawer({ activeItem, onItemClick, onExpand, currentView, 
                 }}
                 className={`w-full h-10 flex items-center justify-center rounded-lg transition-all duration-200 relative ${
                   isActive
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:scale-105'
                 }`}
                 title={item.label}
               >
@@ -120,7 +120,7 @@ export function CompactDrawer({ activeItem, onItemClick, onExpand, currentView, 
               </button>
 
               {/* Tooltip */}
-              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-popover text-popover-foreground text-xs rounded-lg shadow-xl border border-border whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-popover text-popover-foreground text-xs rounded-lg shadow-xl border border-border whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 delay-300 z-50">
                 {item.label}
               </div>
             </div>
