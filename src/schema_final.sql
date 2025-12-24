@@ -293,95 +293,75 @@ COMMENT ON COLUMN contracts.end_date IS '終了日';
 COMMENT ON COLUMN contracts.renewal_date IS '更新期限';
 COMMENT ON COLUMN contracts.deleted_at IS '削除日時（論理削除）';
 
--- ============================================================================
--- 9. notifications（通知）
--- ============================================================================
-
-CREATE TABLE notifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('task_due', 'approval_due', 'comment', 'contract_renewal', 'approval_action')),
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  read BOOLEAN NOT NULL DEFAULT false,
-  related_client_id UUID NULL REFERENCES clients(id) ON DELETE SET NULL,
-  related_item_id UUID NULL,
-  related_item_type TEXT NULL CHECK (related_item_type IN ('task', 'approval', 'comment', 'contract') OR related_item_type IS NULL),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at TIMESTAMPTZ NULL DEFAULT NULL
-);
-
--- インデックス
-CREATE INDEX idx_notifications_org_id ON notifications(org_id);
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_notifications_user_id_read ON notifications(user_id, read);
-CREATE INDEX idx_notifications_user_id_created_at ON notifications(user_id, created_at);
-CREATE INDEX idx_notifications_org_id_created_at ON notifications(org_id, created_at);
-CREATE INDEX idx_notifications_deleted_at ON notifications(deleted_at) WHERE deleted_at IS NULL;
-
--- コメント
-COMMENT ON TABLE notifications IS '通知';
-COMMENT ON COLUMN notifications.id IS '通知ID（主キー）';
-COMMENT ON COLUMN notifications.org_id IS '組織ID';
-COMMENT ON COLUMN notifications.user_id IS '宛先ユーザーID';
-COMMENT ON COLUMN notifications.type IS '通知タイプ（task_due/approval_due/comment/contract_renewal/approval_action）';
-COMMENT ON COLUMN notifications.title IS '通知タイトル';
-COMMENT ON COLUMN notifications.message IS '通知メッセージ';
-COMMENT ON COLUMN notifications.read IS '既読フラグ';
-COMMENT ON COLUMN notifications.related_client_id IS '関連クライアントID';
-COMMENT ON COLUMN notifications.related_item_id IS '関連アイテムID';
-COMMENT ON COLUMN notifications.related_item_type IS '関連アイテム種別（task/approval/comment/contract）';
-COMMENT ON COLUMN notifications.deleted_at IS '削除日時（論理削除）';
-
--- ============================================================================
--- 10. トリガー（updated_at自動更新）
--- ============================================================================
-
--- updated_at自動更新関数
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- organizations
-CREATE TRIGGER trigger_organizations_updated_at
-  BEFORE UPDATE ON organizations
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
--- users
-CREATE TRIGGER trigger_users_updated_at
-  BEFORE UPDATE ON users
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
--- clients
-CREATE TRIGGER trigger_clients_updated_at
-  BEFORE UPDATE ON clients
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
--- tasks
-CREATE TRIGGER trigger_tasks_updated_at
-  BEFORE UPDATE ON tasks
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
--- approvals
-CREATE TRIGGER trigger_approvals_updated_at
-  BEFORE UPDATE ON approvals
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
--- contracts
+-- トリガー（updated_at自動更新）
 CREATE TRIGGER trigger_contracts_updated_at
   BEFORE UPDATE ON contracts
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- 9. activity_log（監査ログ）
+-- ============================================================================
+
+CREATE TABLE activity_log (
+  -- 基本情報
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+  
+  -- 実行者情報
+  actor_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  actor_role TEXT NOT NULL,
+  actor_name TEXT NULL, -- スナップショット（users削除時も保持）
+  
+  -- 操作情報
+  action TEXT NOT NULL, -- 例: "task.create", "approval.approve"
+  entity_type TEXT NOT NULL, -- 例: "task", "approval"
+  entity_id UUID NULL, -- 対象レコードのID
+  
+  -- 組織・クライアント情報
+  org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  client_id UUID NULL REFERENCES clients(id) ON DELETE SET NULL,
+  client_name TEXT NULL, -- スナップショット
+  
+  -- 変更内容（差分）
+  before JSONB NULL, -- 変更前の値
+  after JSONB NULL, -- 変更後の値
+  
+  -- リクエスト情報
+  request_id TEXT NULL, -- API呼び出しのトレースID
+  ip_address TEXT NULL, -- IPアドレス（任意）
+  user_agent TEXT NULL, -- User-Agent（任意）
+  
+  -- 作成日時
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- インデックス
+CREATE INDEX idx_activity_log_org_id_timestamp ON activity_log(org_id, timestamp DESC);
+CREATE INDEX idx_activity_log_actor_user_id ON activity_log(actor_user_id);
+CREATE INDEX idx_activity_log_action ON activity_log(action);
+CREATE INDEX idx_activity_log_entity_type_entity_id ON activity_log(entity_type, entity_id);
+CREATE INDEX idx_activity_log_client_id ON activity_log(client_id);
+CREATE INDEX idx_activity_log_timestamp ON activity_log(timestamp DESC);
+
+-- コメント
+COMMENT ON TABLE activity_log IS '監査ログ（誰が何をしたか）';
+COMMENT ON COLUMN activity_log.id IS 'ログID（主キー）';
+COMMENT ON COLUMN activity_log.timestamp IS 'タイムスタンプ（操作日時）';
+COMMENT ON COLUMN activity_log.actor_user_id IS '実行者ユーザーID';
+COMMENT ON COLUMN activity_log.actor_role IS '実行者ロール';
+COMMENT ON COLUMN activity_log.actor_name IS '実行者名（スナップショット）';
+COMMENT ON COLUMN activity_log.action IS '操作種別（例: task.create, approval.approve）';
+COMMENT ON COLUMN activity_log.entity_type IS 'エンティティ種別（例: task, approval）';
+COMMENT ON COLUMN activity_log.entity_id IS '対象レコードのID';
+COMMENT ON COLUMN activity_log.org_id IS '組織ID';
+COMMENT ON COLUMN activity_log.client_id IS 'クライアントID';
+COMMENT ON COLUMN activity_log.client_name IS 'クライアント名（スナップショット）';
+COMMENT ON COLUMN activity_log.before IS '変更前の値（UPDATE時のみ）';
+COMMENT ON COLUMN activity_log.after IS '変更後の値（CREATE/UPDATE時）';
+COMMENT ON COLUMN activity_log.request_id IS 'リクエストID（トレース用）';
+COMMENT ON COLUMN activity_log.ip_address IS 'IPアドレス';
+COMMENT ON COLUMN activity_log.user_agent IS 'User-Agent';
 
 -- ============================================================================
 -- End of schema_final.sql

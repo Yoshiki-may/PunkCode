@@ -302,6 +302,59 @@
 
 ---
 
+### 9. activity_log（監査ログ）
+
+**目的**: 監査証跡（誰が・いつ・何を・どのクライアントに対して行ったか）
+
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | UUID | NOT NULL | uuid_generate_v4() | ログID（主キー） |
+| timestamp | TIMESTAMPTZ | NOT NULL | now() | タイムスタンプ（操作日時） |
+| actor_user_id | UUID | NOT NULL | - | 実行者ユーザーID |
+| actor_role | TEXT | NOT NULL | - | 実行者ロール |
+| actor_name | TEXT | NULL | - | 実行者名（スナップショット） |
+| action | TEXT | NOT NULL | - | 操作種別（例: task.create, approval.approve） |
+| entity_type | TEXT | NOT NULL | - | エンティティ種別（例: task, approval） |
+| entity_id | UUID | NULL | - | 対象レコードのID |
+| org_id | UUID | NOT NULL | - | 組織ID |
+| client_id | UUID | NULL | - | クライアントID |
+| client_name | TEXT | NULL | - | クライアント名（スナップショット） |
+| before | JSONB | NULL | - | 変更前の値（UPDATE時のみ） |
+| after | JSONB | NULL | - | 変更後の値（CREATE/UPDATE時） |
+| request_id | TEXT | NULL | - | リクエストID（トレース用） |
+| ip_address | TEXT | NULL | - | IPアドレス |
+| user_agent | TEXT | NULL | - | User-Agent |
+| created_at | TIMESTAMPTZ | NOT NULL | now() | 作成日時 |
+
+**制約**:
+- PRIMARY KEY (id)
+- FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE CASCADE
+- FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+- FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
+
+**インデックス**:
+- CREATE INDEX idx_activity_log_org_id_timestamp ON activity_log(org_id, timestamp DESC)
+- CREATE INDEX idx_activity_log_actor_user_id ON activity_log(actor_user_id)
+- CREATE INDEX idx_activity_log_action ON activity_log(action)
+- CREATE INDEX idx_activity_log_entity_type_entity_id ON activity_log(entity_type, entity_id)
+- CREATE INDEX idx_activity_log_client_id ON activity_log(client_id)
+- CREATE INDEX idx_activity_log_timestamp ON activity_log(timestamp DESC)
+
+**RLS**:
+- SELECT: Control/Supportのみ閲覧可能（自組織内）
+- INSERT: システムのみ（service_role）
+
+**監査対象イベント**:
+- Auth: login, logout
+- Task: create, update, delete, complete
+- Approval: create, approve, reject
+- Comment: create
+- Contract: create, update, delete
+- Client: create, update, delete
+- User: create, update, delete（Controlのみ）
+
+---
+
 ## 🔗 リレーション（外部キー）
 
 ### organizations（1）→ users（N）
