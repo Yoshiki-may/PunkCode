@@ -464,7 +464,24 @@ CREATE POLICY "contracts_delete_control" ON contracts
   );
 
 -- ============================================================================
--- 10. notifications ポリシー
+-- 10. activity_log（監査ログ）のRLS
+-- ============================================================================
+
+ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
+
+-- 10-1. SELECT（Control/Supportのみ閲覧可能）
+CREATE POLICY "activity_log_select_control_support" ON activity_log
+  FOR SELECT
+  USING (
+    org_id = current_org_id()
+    AND current_role() IN ('control', 'support')
+  );
+
+-- 10-2. INSERT（システムのみ、service_role）
+-- 通常ユーザーはINSERT不可（アプリケーション層でservice_role使用）
+
+-- ============================================================================
+-- 11. notifications ポリシー
 -- ============================================================================
 
 -- SELECT: 自分宛のみ（全ロール）

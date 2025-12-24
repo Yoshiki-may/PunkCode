@@ -49,7 +49,7 @@ import { EditorTemplates } from './components/editor-board/EditorTemplates';
 import { CreatorBoardSidebar } from './components/creator-board/CreatorBoardSidebar';
 import { CreatorDashboardView } from './components/creator-board/CreatorDashboardView';
 import { CreatorMyProjects } from './components/creator-board/CreatorMyProjects';
-import { ShootCalendar } from './components/creator-board/ShootCalendar';
+import { ShootCalendar } from './components/creator/ShootCalendar';
 import { CreatorUploadAssets } from './components/creator-board/CreatorUploadAssets';
 import { CreatorAssetLibrary } from './components/creator-board/CreatorAssetLibrary';
 import { CreatorPortfolio } from './components/creator-board/CreatorPortfolio';
@@ -79,7 +79,7 @@ import { ClientRegistration } from './components/ClientRegistration';
 // Shared Components
 import { PALSSAIHome } from './components/PALSSAIHome';
 import { AIResearch } from './components/AIResearch';
-import { ScheduleBoard } from './components/schedule/ScheduleBoard';
+import { ScheduleBoard } from './components/ScheduleBoard';
 import { SNSNews } from './components/SNSNews';
 import { Chat } from './components/Chat';
 import { Settings } from './components/Settings';
